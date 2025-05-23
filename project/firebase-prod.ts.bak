@@ -1,0 +1,60 @@
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, collection, getDocs, query, limit } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import { getAnalytics } from 'firebase/analytics';
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDYfx7_J2ytajSGVRZp49pgOlbr1hQCXGo",
+  authDomain: "servefirst-4d431.firebaseapp.com",
+  databaseURL: "https://servefirst-4d431-default-rtdb.firebaseio.com",
+  projectId: "servefirst-4d431",
+  storageBucket: "servefirst-4d431.appspot.com",
+  messagingSenderId: "202211771576",
+  appId: "1:202211771576:web:ef55e0103774742122204d",
+  measurementId: "G-VDENK2RHN9"
+};
+
+// Initialize Firebase - check if app already exists
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
+export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+
+// Simple connection check function
+export const attemptReconnect = async (): Promise<boolean> => {
+  try {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, limit(1));
+    await getDocs(q);
+    return true;
+  } catch (error) {
+    console.error('Error attempting to reconnect:', error);
+    return false;
+  }
+};
+
+// Error handling
+export const handleFirebaseError = (error: any) => {
+  console.error('Firebase error:', error);
+  if (error?.code) {
+    switch (error.code) {
+      case 'permission-denied':
+        console.error('Permissão negada. O usuário não tem acesso a este recurso.');
+        break;
+      case 'not-found':
+        console.error('Documento não encontrado.');
+        break;
+      case 'already-exists':
+        console.error('Documento já existe.');
+        break;
+      case 'failed-precondition':
+        console.error('Falha na pré-condição. Verifique se todos os requisitos foram atendidos.');
+        break;
+      default:
+        console.error(`Erro do Firebase: ${error.code}`);
+    }
+  }
+}; 

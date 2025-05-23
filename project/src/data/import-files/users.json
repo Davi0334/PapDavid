@@ -1,0 +1,52 @@
+{
+  "user1": {
+    "email": "diretor@exemplo.com",
+    "role": "admin",
+    "profile": {
+      "fullName": "Carlos Diretor",
+      "username": "carlosdiretor",
+      "avatarUrl": "https://ui-avatars.com/api/?name=Carlos+Diretor&background=random"
+    },
+    "createdAt": "2023-06-05T00:00:00.000Z"
+  },
+  "user2": {
+    "email": "ator1@exemplo.com",
+    "role": "user",
+    "profile": {
+      "fullName": "Ana Atriz",
+      "username": "anaatriz",
+      "avatarUrl": "https://ui-avatars.com/api/?name=Ana+Atriz&background=random"
+    },
+    "createdAt": "2023-06-05T00:00:00.000Z"
+  },
+  "user3": {
+    "email": "ator2@exemplo.com",
+    "role": "user",
+    "profile": {
+      "fullName": "Bruno Ator",
+      "username": "brunoator",
+      "avatarUrl": "https://ui-avatars.com/api/?name=Bruno+Ator&background=random"
+    },
+    "createdAt": "2023-06-05T00:00:00.000Z"
+  },
+  "user4": {
+    "email": "cenografo@exemplo.com",
+    "role": "user",
+    "profile": {
+      "fullName": "Diana Cenógrafa",
+      "username": "dianacenografa",
+      "avatarUrl": "https://ui-avatars.com/api/?name=Diana+Cenografa&background=random"
+    },
+    "createdAt": "2023-06-05T00:00:00.000Z"
+  },
+  "user5": {
+    "email": "figurinista@exemplo.com",
+    "role": "user",
+    "profile": {
+      "fullName": "Eduardo Figurinista",
+      "username": "eduardofigurinista",
+      "avatarUrl": "https://ui-avatars.com/api/?name=Eduardo+Figurinista&background=random"
+    },
+    "createdAt": "2023-06-05T00:00:00.000Z"
+  }
+}

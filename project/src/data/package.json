@@ -1,0 +1,17 @@
+{
+  "name": "servefirst-data-import",
+  "version": "1.0.0",
+  "description": "Scripts para importação de dados para o Firebase do ServeFirst",
+  "main": "import-data-direct.js",
+  "scripts": {
+    "import": "node import-data-direct.js",
+    "import-admin": "node import-data-admin.js",
+    "import-rest": "node import-data-rest.js",
+    "generate-json": "node generate-import-json.js"
+  },
+  "dependencies": {
+    "firebase": "^10.14.1",
+    "firebase-admin": "^11.11.1"
+  },
+  "private": true
+}

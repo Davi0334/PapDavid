@@ -1,0 +1,152 @@
+{
+  "teatros": {
+    "teatro1": {
+      "titulo": "Hamlet - A Tragédia",
+      "descricao": "Uma adaptação moderna da obra de Shakespeare",
+      "diasEnsaio": ["Segunda", "Quarta", "Sexta"],
+      "dataApresentacao": {"_seconds": 1702598400, "_nanoseconds": 0},
+      "participantes": ["user1", "user2", "user3"],
+      "criador": "user1",
+      "dataCriacao": {"_seconds": 1686009600, "_nanoseconds": 0},
+      "alerta": true,
+      "roteiro": "Ato 1: Hamlet encontra o fantasma de seu pai.\nAto 2: Hamlet finge loucura para investigar.\nAto 3: 'Ser ou não ser'.\nAto 4: Hamlet mata Polônio por engano.\nAto 5: Duelo final e morte de Hamlet.",
+      "numeroAtos": 5,
+      "figurinos": ["Traje medieval para Hamlet", "Vestido de corte para Ofélia", "Armadura para o Rei"],
+      "quantidadeFigurinos": 15,
+      "temaFigurinos": "Medieval Dinamarquês",
+      "quantidadeCenas": 20,
+      "cenarios": ["Castelo de Elsinore", "Cemitério", "Sala do trono", "Quarto da rainha"],
+      "ordemCenarios": "1. Muralhas do castelo\n2. Sala do trono\n3. Quarto de Hamlet\n4. Cemitério\n5. Sala de duelos"
+    },
+    "teatro2": {
+      "titulo": "Romeu e Julieta",
+      "descricao": "A clássica história de amor de Shakespeare",
+      "diasEnsaio": ["Terça", "Quinta", "Sábado"],
+      "dataApresentacao": {"_seconds": 1700438400, "_nanoseconds": 0},
+      "participantes": ["user1", "user4", "user5"],
+      "criador": "user1",
+      "dataCriacao": {"_seconds": 1686096000, "_nanoseconds": 0},
+      "alerta": false,
+      "roteiro": "Prólogo: Introdução das famílias rivais.\nAto 1: Romeu e Julieta se conhecem no baile.\nAto 2: A cena do balcão e o casamento secreto.\nAto 3: Duelo, morte de Mercúcio e Tebaldo, exílio de Romeu.\nAto 4: Plano do Frei Lourenço.\nAto 5: Suicídio dos amantes.",
+      "numeroAtos": 5,
+      "figurinos": ["Traje nobre para Romeu", "Vestido de baile para Julieta", "Trajes de época para os Montecchio e Capuleto"],
+      "quantidadeFigurinos": 25,
+      "temaFigurinos": "Renascença Italiana",
+      "quantidadeCenas": 24,
+      "cenarios": ["Praça de Verona", "Mansão dos Capuleto", "Balcão de Julieta", "Cela do Frei", "Túmulo dos Capuleto"],
+      "ordemCenarios": "1. Praça de Verona\n2. Mansão dos Capuleto\n3. Balcão de Julieta\n4. Igreja\n5. Boticário\n6. Túmulo"
+    },
+    "teatro3": {
+      "titulo": "Sonho de Uma Noite de Verão",
+      "descricao": "Comédia mágica sobre amor e ilusão",
+      "diasEnsaio": ["Segunda", "Quarta", "Sexta"],
+      "dataApresentacao": {"_seconds": 1704240000, "_nanoseconds": 0},
+      "participantes": ["user2", "user3", "user5"],
+      "criador": "user2",
+      "dataCriacao": {"_seconds": 1686182400, "_nanoseconds": 0},
+      "alerta": true,
+      "roteiro": "Ato 1: Apresentação dos casais e fuga para a floresta.\nAto 2: Puck e as fadas, confusão amorosa.\nAto 3: Transformação de Fundilho, mais confusões.\nAto 4: Resolução dos encantamentos.\nAto 5: Casamentos e peça dos artesãos.",
+      "numeroAtos": 5,
+      "figurinos": ["Trajes de fadas", "Coroas de flores", "Orelhas de burro para Fundilho", "Trajes atenienses"],
+      "quantidadeFigurinos": 30,
+      "temaFigurinos": "Fantasia Florestal",
+      "quantidadeCenas": 18,
+      "cenarios": ["Palácio de Teseu", "Floresta encantada", "Casa de Quince", "Clareira das fadas"],
+      "ordemCenarios": "1. Palácio de Atenas\n2. Entrada da floresta\n3. Clareira das fadas\n4. Árvore de Titânia\n5. Retorno ao palácio"
+    }
+  },
+  "eventos": {
+    "evento1": {
+      "titulo": "Apresentação de Hamlet",
+      "descricao": "Apresentação da peça Hamlet no Teatro Municipal",
+      "data": {"_seconds": 1702598400, "_nanoseconds": 0},
+      "local": "Teatro Municipal",
+      "teatroId": "teatro1",
+      "dataCriacao": {"_seconds": 1686009600, "_nanoseconds": 0}
+    },
+    "evento2": {
+      "titulo": "Ensaio Geral de Romeu e Julieta",
+      "descricao": "Ensaio geral da peça Romeu e Julieta",
+      "data": {"_seconds": 1700352000, "_nanoseconds": 0},
+      "local": "Centro Cultural",
+      "teatroId": "teatro2",
+      "dataCriacao": {"_seconds": 1686096000, "_nanoseconds": 0}
+    },
+    "evento3": {
+      "titulo": "Reunião de Elenco - Sonho de Uma Noite de Verão",
+      "descricao": "Reunião para discutir os próximos passos da produção",
+      "data": {"_seconds": 1686268800, "_nanoseconds": 0},
+      "local": "Sala de Ensaio",
+      "teatroId": "teatro3",
+      "dataCriacao": {"_seconds": 1686182400, "_nanoseconds": 0}
+    },
+    "evento4": {
+      "titulo": "Workshop de Interpretação Shakespeariana",
+      "descricao": "Workshop para aprimorar técnicas de interpretação das obras de Shakespeare",
+      "data": {"_seconds": 1687478400, "_nanoseconds": 0},
+      "local": "Universidade de Artes Cênicas",
+      "teatroId": null,
+      "dataCriacao": {"_seconds": 1686268800, "_nanoseconds": 0}
+    },
+    "evento5": {
+      "titulo": "Festival de Teatro Clássico",
+      "descricao": "Apresentação de diversas peças clássicas em um único evento",
+      "data": {"_seconds": 1704844800, "_nanoseconds": 0},
+      "local": "Parque Central",
+      "teatroId": null,
+      "dataCriacao": {"_seconds": 1686355200, "_nanoseconds": 0}
+    }
+  },
+  "users": {
+    "user1": {
+      "email": "diretor@exemplo.com",
+      "role": "admin",
+      "profile": {
+        "fullName": "Carlos Diretor",
+        "username": "carlosdiretor",
+        "avatarUrl": "https://ui-avatars.com/api/?name=Carlos+Diretor&background=random"
+      },
+      "createdAt": {"_seconds": 1685923200, "_nanoseconds": 0}
+    },
+    "user2": {
+      "email": "ator1@exemplo.com",
+      "role": "user",
+      "profile": {
+        "fullName": "Ana Atriz",
+        "username": "anaatriz",
+        "avatarUrl": "https://ui-avatars.com/api/?name=Ana+Atriz&background=random"
+      },
+      "createdAt": {"_seconds": 1685923200, "_nanoseconds": 0}
+    },
+    "user3": {
+      "email": "ator2@exemplo.com",
+      "role": "user",
+      "profile": {
+        "fullName": "Bruno Ator",
+        "username": "brunoator",
+        "avatarUrl": "https://ui-avatars.com/api/?name=Bruno+Ator&background=random"
+      },
+      "createdAt": {"_seconds": 1685923200, "_nanoseconds": 0}
+    },
+    "user4": {
+      "email": "cenografo@exemplo.com",
+      "role": "user",
+      "profile": {
+        "fullName": "Diana Cenógrafa",
+        "username": "dianacenografa",
+        "avatarUrl": "https://ui-avatars.com/api/?name=Diana+Cenografa&background=random"
+      },
+      "createdAt": {"_seconds": 1685923200, "_nanoseconds": 0}
+    },
+    "user5": {
+      "email": "figurinista@exemplo.com",
+      "role": "user",
+      "profile": {
+        "fullName": "Eduardo Figurinista",
+        "username": "eduardofigurinista",
+        "avatarUrl": "https://ui-avatars.com/api/?name=Eduardo+Figurinista&background=random"
+      },
+      "createdAt": {"_seconds": 1685923200, "_nanoseconds": 0}
+    }
+  }
+} 

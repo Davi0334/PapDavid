@@ -1,0 +1,48 @@
+{
+  "teatros": [
+    {
+      "id": "1",
+      "titulo": "Hamlet - A Tragédia",
+      "descricao": "Uma adaptação moderna da obra de Shakespeare",
+      "diasEnsaio": ["Segunda", "Quarta", "Sexta"],
+      "dataApresentacao": "2023-12-15",
+      "participantes": ["user1", "user2"],
+      "criador": "user1",
+      "dataCriacao": "2023-10-01",
+      "alerta": true,
+      "local": "Teatro Municipal"
+    },
+    {
+      "id": "2",
+      "titulo": "Romeu e Julieta",
+      "descricao": "A clássica história de amor de Shakespeare",
+      "diasEnsaio": ["Terça", "Quinta", "Sábado"],
+      "dataApresentacao": "2023-11-20",
+      "participantes": ["user2", "user3"],
+      "criador": "user2",
+      "dataCriacao": "2023-09-15",
+      "alerta": false,
+      "local": "Teatro da Cidade"
+    }
+  ],
+  "eventos": [
+    {
+      "id": "1",
+      "titulo": "Reunião de Elenco",
+      "descricao": "Reunião para discutir os próximos passos da produção",
+      "data": "2023-10-05",
+      "local": "Sala de Ensaio",
+      "teatroId": "1",
+      "dataCriacao": "2023-10-01"
+    },
+    {
+      "id": "2",
+      "titulo": "Ensaio Geral de Romeu e Julieta",
+      "descricao": "Ensaio geral da peça Romeu e Julieta",
+      "data": "2023-11-20",
+      "local": "Centro Cultural",
+      "teatroId": "2",
+      "dataCriacao": "2023-09-20"
+    }
+  ]
+}

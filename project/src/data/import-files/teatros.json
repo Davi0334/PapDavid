@@ -1,0 +1,109 @@
+{
+  "teatro1": {
+    "titulo": "Hamlet - A Tragédia",
+    "descricao": "Uma adaptação moderna da obra de Shakespeare",
+    "diasEnsaio": [
+      "Segunda",
+      "Quarta",
+      "Sexta"
+    ],
+    "dataApresentacao": "2023-12-15T00:00:00.000Z",
+    "participantes": [
+      "user1",
+      "user2",
+      "user3"
+    ],
+    "criador": "user1",
+    "dataCriacao": "2023-06-06T00:00:00.000Z",
+    "alerta": true,
+    "roteiro": "Ato 1: Hamlet encontra o fantasma de seu pai.\nAto 2: Hamlet finge loucura para investigar.\nAto 3: 'Ser ou não ser'.\nAto 4: Hamlet mata Polônio por engano.\nAto 5: Duelo final e morte de Hamlet.",
+    "numeroAtos": 5,
+    "figurinos": [
+      "Traje medieval para Hamlet",
+      "Vestido de corte para Ofélia",
+      "Armadura para o Rei"
+    ],
+    "quantidadeFigurinos": 15,
+    "temaFigurinos": "Medieval Dinamarquês",
+    "quantidadeCenas": 20,
+    "cenarios": [
+      "Castelo de Elsinore",
+      "Cemitério",
+      "Sala do trono",
+      "Quarto da rainha"
+    ],
+    "ordemCenarios": "1. Muralhas do castelo\n2. Sala do trono\n3. Quarto de Hamlet\n4. Cemitério\n5. Sala de duelos"
+  },
+  "teatro2": {
+    "titulo": "Romeu e Julieta",
+    "descricao": "A clássica história de amor de Shakespeare",
+    "diasEnsaio": [
+      "Terça",
+      "Quinta",
+      "Sábado"
+    ],
+    "dataApresentacao": "2023-11-20T00:00:00.000Z",
+    "participantes": [
+      "user1",
+      "user4",
+      "user5"
+    ],
+    "criador": "user1",
+    "dataCriacao": "2023-06-07T00:00:00.000Z",
+    "alerta": false,
+    "roteiro": "Prólogo: Introdução das famílias rivais.\nAto 1: Romeu e Julieta se conhecem no baile.\nAto 2: A cena do balcão e o casamento secreto.\nAto 3: Duelo, morte de Mercúcio e Tebaldo, exílio de Romeu.\nAto 4: Plano do Frei Lourenço.\nAto 5: Suicídio dos amantes.",
+    "numeroAtos": 5,
+    "figurinos": [
+      "Traje nobre para Romeu",
+      "Vestido de baile para Julieta",
+      "Trajes de época para os Montecchio e Capuleto"
+    ],
+    "quantidadeFigurinos": 25,
+    "temaFigurinos": "Renascença Italiana",
+    "quantidadeCenas": 24,
+    "cenarios": [
+      "Praça de Verona",
+      "Mansão dos Capuleto",
+      "Balcão de Julieta",
+      "Cela do Frei",
+      "Túmulo dos Capuleto"
+    ],
+    "ordemCenarios": "1. Praça de Verona\n2. Mansão dos Capuleto\n3. Balcão de Julieta\n4. Igreja\n5. Boticário\n6. Túmulo"
+  },
+  "teatro3": {
+    "titulo": "Sonho de Uma Noite de Verão",
+    "descricao": "Comédia mágica sobre amor e ilusão",
+    "diasEnsaio": [
+      "Segunda",
+      "Quarta",
+      "Sexta"
+    ],
+    "dataApresentacao": "2024-01-03T00:00:00.000Z",
+    "participantes": [
+      "user2",
+      "user3",
+      "user5"
+    ],
+    "criador": "user2",
+    "dataCriacao": "2023-06-08T00:00:00.000Z",
+    "alerta": true,
+    "roteiro": "Ato 1: Apresentação dos casais e fuga para a floresta.\nAto 2: Puck e as fadas, confusão amorosa.\nAto 3: Transformação de Fundilho, mais confusões.\nAto 4: Resolução dos encantamentos.\nAto 5: Casamentos e peça dos artesãos.",
+    "numeroAtos": 5,
+    "figurinos": [
+      "Trajes de fadas",
+      "Coroas de flores",
+      "Orelhas de burro para Fundilho",
+      "Trajes atenienses"
+    ],
+    "quantidadeFigurinos": 30,
+    "temaFigurinos": "Fantasia Florestal",
+    "quantidadeCenas": 18,
+    "cenarios": [
+      "Palácio de Teseu",
+      "Floresta encantada",
+      "Casa de Quince",
+      "Clareira das fadas"
+    ],
+    "ordemCenarios": "1. Palácio de Atenas\n2. Entrada da floresta\n3. Clareira das fadas\n4. Árvore de Titânia\n5. Retorno ao palácio"
+  }
+}

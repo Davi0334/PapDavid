@@ -1,0 +1,16 @@
+// Firestore rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to all users for development
+    // WARNING: This is insecure and should only be used for development
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // For production, use more restrictive rules like:
+    // match /users/{userId} {
+    //   allow read, write: if request.auth != null && request.auth.uid == userId;
+    // }
+  }
+}

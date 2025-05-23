@@ -1,0 +1,42 @@
+{
+  "evento1": {
+    "titulo": "Apresentação de Hamlet",
+    "descricao": "Apresentação da peça Hamlet no Teatro Municipal",
+    "data": "2023-12-15T00:00:00.000Z",
+    "local": "Teatro Municipal",
+    "teatroId": "teatro1",
+    "dataCriacao": "2023-06-06T00:00:00.000Z"
+  },
+  "evento2": {
+    "titulo": "Ensaio Geral de Romeu e Julieta",
+    "descricao": "Ensaio geral da peça Romeu e Julieta",
+    "data": "2023-11-19T00:00:00.000Z",
+    "local": "Centro Cultural",
+    "teatroId": "teatro2",
+    "dataCriacao": "2023-06-07T00:00:00.000Z"
+  },
+  "evento3": {
+    "titulo": "Reunião de Elenco - Sonho de Uma Noite de Verão",
+    "descricao": "Reunião para discutir os próximos passos da produção",
+    "data": "2023-06-09T00:00:00.000Z",
+    "local": "Sala de Ensaio",
+    "teatroId": "teatro3",
+    "dataCriacao": "2023-06-08T00:00:00.000Z"
+  },
+  "evento4": {
+    "titulo": "Workshop de Interpretação Shakespeariana",
+    "descricao": "Workshop para aprimorar técnicas de interpretação das obras de Shakespeare",
+    "data": "2023-06-23T00:00:00.000Z",
+    "local": "Universidade de Artes Cênicas",
+    "teatroId": null,
+    "dataCriacao": "2023-06-09T00:00:00.000Z"
+  },
+  "evento5": {
+    "titulo": "Festival de Teatro Clássico",
+    "descricao": "Apresentação de diversas peças clássicas em um único evento",
+    "data": "2024-01-10T00:00:00.000Z",
+    "local": "Parque Central",
+    "teatroId": null,
+    "dataCriacao": "2023-06-10T00:00:00.000Z"
+  }
+}

@@ -1,0 +1,3008 @@
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { 
+  getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, 
+  query, where, Timestamp, serverTimestamp 
+} from 'firebase/firestore';
+import { 
+  getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
+  signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, updateProfile 
+} from 'firebase/auth';
+import './simple.css';
+import { db, auth } from './lib/firebase-prod';
+import { AuthProvider, useAuth } from './lib/auth';
+import { DataServiceProvider, useDataService } from './lib/data-service';
+
+// Import pages
+import Home from './pages/home';
+import { Teatros } from './pages/teatros';
+import { TeatroDetalhes } from './pages/teatro-detalhes';
+import { Buscar } from './pages/buscar';
+import { Eventos } from './pages/eventos';
+import { Perfil } from './pages/perfil';
+import { Login } from './pages/login';
+import { Cadastro } from './pages/register';
+import { SetAdmin } from './pages/set-admin';
+import { EsqueciSenha } from './pages/esqueci-senha';
+import { CriarTeatro } from './pages/criar-teatro';
+import { EditarTeatro } from './pages/editar-teatro';
+
+
+// Tipo para timestamp do Firestore - rename to avoid conflict
+interface FirestoreTimestampType {
+  seconds: number;
+  nanoseconds: number;
+}
+
+// Definição dos tipos
+interface Teatro {
+  id: string;
+  titulo: string;
+  descricao: string;
+  diasEnsaio: string[];
+  dataApresentacao: string | FirestoreTimestampType;
+  participantes: string[];
+  criador: string;
+  criadoEm?: string | FirestoreTimestampType;
+  atualizadoEm?: string | FirestoreTimestampType;
+  temAlerta?: boolean;
+  roteiro?: string;
+  cenarios?: string[];
+  figurinos?: string[];
+  temaFigurinos?: string;
+  numeroAtos?: number;
+  quantidadeCenas?: number;
+  quantidadeFigurinos?: number;
+  ordemCenarios?: string;
+  dataCriacao?: string | FirestoreTimestampType;
+  local?: string;
+  mensagemAlerta?: string;
+  cenario?: string;
+  quantidadeAtores?: number;
+  figurino?: string;
+}
+
+interface Evento {
+  id: string;
+  titulo: string;
+  descricao: string;
+  data: string;
+  local: string;
+  organizador: string;
+  horarioInicio?: string;
+  horarioFim?: string;
+  teatroId?: string;
+  criadoEm?: string | FirestoreTimestampType;
+  atualizadoEm?: string | FirestoreTimestampType;
+}
+
+// Criação do contexto do serviço de dados
+interface DataServiceContextType {
+  getTeatros: () => Promise<Teatro[]>;
+  getTeatroById: (id: string) => Promise<Teatro | null>;
+  createTeatro: (teatro: Omit<Teatro, 'id'>) => Promise<string>;
+  updateTeatro: (id: string, teatro: Partial<Teatro>) => Promise<boolean>;
+  deleteTeatro: (id: string) => Promise<boolean>;
+  getEventos: () => Promise<Evento[]>;
+  getEvento: (id: string) => Promise<Evento | null>;
+}
+
+const DataServiceContext = createContext<DataServiceContextType>({
+  getTeatros: async () => [],
+  getTeatroById: async () => null,
+  createTeatro: async () => '',
+  updateTeatro: async () => false,
+  deleteTeatro: async () => false,
+  getEventos: async () => [],
+  getEvento: async () => null
+});
+
+// Hook para usar o serviço de dados
+function useDataService() {
+  return React.useContext(DataServiceContext);
+}
+
+// Função auxiliar para formatar timestamps do Firestore
+function formatTimestamp(timestamp: string | FirestoreTimestampType | undefined): string {
+  if (!timestamp) return '';
+  
+  if (typeof timestamp === 'object' && 'seconds' in timestamp) {
+    return new Date(timestamp.seconds * 1000).toLocaleString();
+  }
+  
+  return String(timestamp);
+}
+
+// Funções específicas para limpar timestamps em cada tipo de objeto
+function cleanTeatroTimestamps(teatro: any): Teatro {
+  // Função para garantir que um valor seja uma string
+  const ensureString = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && 'seconds' in value) {
+      return new Date(value.seconds * 1000).toLocaleString();
+    }
+    // Para outros tipos, converter para string
+    return String(value);
+  };
+  
+  // Garantir que o array diasEnsaio seja realmente um array
+  const diasEnsaio = Array.isArray(teatro.diasEnsaio) 
+    ? teatro.diasEnsaio.map(ensureString)
+    : [];
+  
+  // Construir um objeto seguro
+  return {
+    id: teatro.id || '',
+    titulo: ensureString(teatro.titulo),
+    descricao: ensureString(teatro.descricao),
+    diasEnsaio: diasEnsaio,
+    dataApresentacao: ensureString(teatro.dataApresentacao),
+    participantes: Array.isArray(teatro.participantes) ? teatro.participantes : [],
+    criador: ensureString(teatro.criador),
+    criadoEm: ensureString(teatro.criadoEm),
+    atualizadoEm: ensureString(teatro.atualizadoEm),
+    temAlerta: !!teatro.temAlerta,
+    roteiro: ensureString(teatro.roteiro),
+    cenarios: teatro.cenarios ? teatro.cenarios.map(ensureString) : [],
+    figurinos: teatro.figurinos ? teatro.figurinos.map(ensureString) : [],
+    temaFigurinos: ensureString(teatro.temaFigurinos),
+    numeroAtos: teatro.numeroAtos || 0,
+    quantidadeCenas: teatro.quantidadeCenas || 0,
+    quantidadeFigurinos: teatro.quantidadeFigurinos || 0,
+    ordemCenarios: teatro.ordemCenarios ? teatro.ordemCenarios : '',
+    dataCriacao: ensureString(teatro.dataCriacao),
+    local: ensureString(teatro.local),
+    mensagemAlerta: ensureString(teatro.mensagemAlerta),
+    cenario: ensureString(teatro.cenario),
+    quantidadeAtores: teatro.quantidadeAtores || 0,
+    figurino: ensureString(teatro.figurino),
+  };
+}
+
+function cleanEventoTimestamps(evento: any): Evento {
+  // Função para garantir que um valor seja uma string
+  const ensureString = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && 'seconds' in value) {
+      return new Date(value.seconds * 1000).toLocaleString();
+    }
+    // Para outros tipos, converter para string
+    return String(value);
+  };
+  
+  // Construir um objeto seguro
+  return {
+    id: evento.id || '',
+    titulo: ensureString(evento.titulo),
+    descricao: ensureString(evento.descricao),
+    data: ensureString(evento.data),
+    local: ensureString(evento.local),
+    organizador: ensureString(evento.organizador),
+    horarioInicio: ensureString(evento.horarioInicio),
+    horarioFim: ensureString(evento.horarioFim),
+    teatroId: ensureString(evento.teatroId),
+    criadoEm: ensureString(evento.criadoEm),
+    atualizadoEm: ensureString(evento.atualizadoEm)
+  };
+}
+
+// Provider do serviço de dados
+function DataServiceProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false); // Adicionando state de loading aqui
+  
+  // Função para garantir que valores sejam string (para uso interno)
+  const ensureString = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && value.seconds) {
+      // Para objetos timestamp
+      const date = new Date(value.seconds * 1000);
+      return date.toLocaleDateString('pt-BR');
+    }
+    return String(value);
+  };
+
+  // Função para obter todos os teatros
+  const getTeatros = async (): Promise<Teatro[]> => {
+    if (!user) return [];
+
+    try {
+      const userTeatros: Teatro[] = [];
+      
+      // Buscar teatros onde o usuário é participante
+      const teatrosRef = collection(db, 'teatros');
+      const participantQuery = query(teatrosRef, where('participantes', 'array-contains', user.uid));
+      const participantSnapshot = await getDocs(participantQuery);
+      
+      participantSnapshot.forEach((doc) => {
+        const data = doc.data();
+        userTeatros.push(cleanTeatroTimestamps({ id: doc.id, ...data }));
+      });
+      
+      // Buscar teatros onde o usuário é criador (se ainda não incluídos)
+      const creatorQuery = query(teatrosRef, where('criador', '==', user.uid));
+      const creatorSnapshot = await getDocs(creatorQuery);
+      
+      creatorSnapshot.forEach((doc) => {
+        if (!userTeatros.some(t => t.id === doc.id)) {
+          const data = doc.data();
+          userTeatros.push(cleanTeatroTimestamps({ id: doc.id, ...data }));
+        }
+      });
+      
+      return userTeatros;
+    } catch (error) {
+      console.error('Erro ao buscar teatros:', error);
+      return [];
+    }
+  };
+
+  // Função para obter um teatro pelo ID
+  const getTeatroById = async (id: string): Promise<Teatro | null> => {
+    try {
+      const docRef = doc(db, 'teatros', id);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log("Dados brutos do teatro:", data);
+        
+        // Formatar timestamp
+        const teatro = {
+          id: docSnap.id,
+          titulo: data.titulo || '',
+          descricao: data.descricao || '',
+          diasEnsaio: data.diasEnsaio || [],
+          dataApresentacao: data.dataApresentacao,
+          participantes: data.participantes || [],
+          criador: data.criador || '',
+          criadoEm: data.criadoEm,
+          atualizadoEm: data.atualizadoEm,
+          temAlerta: data.temAlerta || false,
+          roteiro: data.roteiro || '',
+          cenarios: data.cenarios || [],
+          figurinos: data.figurinos || [],
+          temaFigurinos: data.temaFigurinos || '',
+          numeroAtos: data.numeroAtos || 0,
+          quantidadeCenas: data.quantidadeCenas || 0,
+          quantidadeFigurinos: data.quantidadeFigurinos || 0,
+          ordemCenarios: data.ordemCenarios || '',
+          dataCriacao: data.dataCriacao,
+          local: data.local || '',
+          mensagemAlerta: data.mensagemAlerta,
+          cenario: data.cenario || '',
+          quantidadeAtores: data.quantidadeAtores || 0,
+          figurino: data.figurino || '',
+        };
+        
+        return cleanTeatroTimestamps(teatro);
+      } else {
+        console.log("Documento de teatro não encontrado");
+        return null;
+      }
+    } catch (error) {
+      console.error("Erro ao buscar teatro por ID:", error);
+      return null;
+    }
+  };
+
+  // Função para criar um novo teatro
+  const createTeatro = async (teatro: Omit<Teatro, 'id'>): Promise<string> => {
+    try {
+      setLoading(true); // Define loading como true antes de começar
+      const docRef = await addDoc(collection(db, 'teatros'), {
+        ...teatro,
+        criadoEm: serverTimestamp(),
+        atualizadoEm: serverTimestamp(),
+      });
+      console.log('Teatro criado com ID:', docRef.id);
+      return docRef.id;
+    } catch (err) {
+      console.error('Erro ao criar teatro:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Função para atualizar um teatro
+  const updateTeatro = async (id: string, updates: Partial<Teatro>): Promise<boolean> => {
+    if (!user) throw new Error('Usuário não autenticado');
+    
+    try {
+      await updateDoc(doc(db, 'teatros', id), {
+        ...updates,
+        atualizadoEm: serverTimestamp()
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao atualizar teatro:', error);
+      return false;
+    }
+  };
+
+  // Função para deletar um teatro
+  const deleteTeatro = async (id: string): Promise<boolean> => {
+    if (!user) throw new Error('Usuário não autenticado');
+    
+    try {
+      await deleteDoc(doc(db, 'teatros', id));
+      return true;
+    } catch (error) {
+      console.error('Erro ao deletar teatro:', error);
+      return false;
+    }
+  };
+
+  // Função para obter todos os eventos
+  const getEventos = async (): Promise<Evento[]> => {
+    if (!user) return [];
+    
+    try {
+      const eventosRef = collection(db, 'eventos');
+      const q = query(eventosRef);
+      const snapshot = await getDocs(q);
+      
+      const eventos: Evento[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        eventos.push(cleanEventoTimestamps({ id: doc.id, ...data }));
+      });
+      
+      return eventos;
+    } catch (error) {
+      console.error('Erro ao buscar eventos:', error);
+      return [];
+    }
+  };
+
+  // Função para obter um evento pelo ID
+  const getEvento = async (id: string): Promise<Evento | null> => {
+    if (!id) return null;
+    
+    try {
+      const eventoDoc = await getDoc(doc(db, 'eventos', id));
+      
+      if (eventoDoc.exists()) {
+        const data = eventoDoc.data();
+        return cleanEventoTimestamps({ id: eventoDoc.id, ...data });
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Erro ao buscar evento por ID:', error);
+      return null;
+    }
+  };
+
+  const value = {
+    getTeatros,
+    getTeatroById,
+    createTeatro,
+    updateTeatro,
+    deleteTeatro,
+    getEventos,
+    getEvento
+  };
+
+  return (
+    <DataServiceContext.Provider value={value}>
+      {children}
+    </DataServiceContext.Provider>
+  );
+}
+
+// Interface para props do MobileWrapper
+interface MobileWrapperProps {
+  children: React.ReactNode;
+  title: string;
+  showBack?: boolean;
+  showBottomNav?: boolean;
+  customClass?: string;
+}
+
+// Componente para envolver todas as telas com a estrutura móvel
+function MobileWrapper({ children, title, showBack = true, showBottomNav = true, customClass = '' }: MobileWrapperProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  return (
+    <div className={`mobile-wrapper ${customClass}`}>
+      <div className="mobile-header">
+        {showBack && (
+          <button 
+            className="back-button" 
+            onClick={() => navigate(-1)}
+          >
+            ←
+          </button>
+        )}
+        <h1 className="mobile-title">{title}</h1>
+      </div>
+      
+      <div className="mobile-content">
+        {children}
+      </div>
+      
+      {showBottomNav && <BottomNav currentPath={location.pathname} />}
+    </div>
+  );
+}
+
+// Componente do BottomNav
+function BottomNav({ currentPath }: { currentPath: string }) {
+  const isActive = (path: string) => {
+    return currentPath === path;
+  };
+  
+  return (
+    <div className="bottom-nav">
+      <Link to="/" className={`bottom-nav-item ${isActive('/') ? 'active' : ''}`}>
+        <div className="nav-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span>INÍCIO</span>
+      </Link>
+      
+      <Link to="/buscar" className={`bottom-nav-item ${isActive('/buscar') ? 'active' : ''}`}>
+        <div className="nav-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span>BUSCAR</span>
+      </Link>
+      
+      <Link to="/eventos" className={`bottom-nav-item ${isActive('/eventos') ? 'active' : ''}`}>
+        <div className="nav-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M16 2V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M8 2V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M9 16L11 18L15 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span>EVENTOS</span>
+      </Link>
+      
+      <Link to="/perfil" className={`bottom-nav-item ${isActive('/perfil') ? 'active' : ''}`}>
+        <div className="nav-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span>PERFIL</span>
+      </Link>
+    </div>
+  );
+}
+
+// Mock de dados para simular teatros
+const mockTeatros: Teatro[] = [
+  {
+    id: '1',
+    titulo: 'Título',
+    descricao: 'Descrição do teatro',
+    diasEnsaio: ['Segunda', 'Quarta', 'Sexta'],
+    dataApresentacao: '2023-12-25',
+    participantes: ['1', '2', '3'],
+    criador: '1',
+    temAlerta: true
+  },
+  {
+    id: '2',
+    titulo: 'Título',
+    descricao: 'Outro teatro de exemplo',
+    diasEnsaio: ['Terça', 'Quinta'],
+    dataApresentacao: '2023-11-30',
+    participantes: ['1', '4'],
+    criador: '1',
+    temAlerta: false
+  }
+];
+
+// Componente Home
+function Home() {
+  const navigate = useNavigate();
+  const [teatros, setTeatros] = useState<Teatro[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const dataService = useDataService();
+  const { user, isAdmin, userRole } = useAuth();
+  
+  // Add force visibility for testing - REMOVE THIS IN PRODUCTION
+  const forceShowButton = true;
+  
+  useEffect(() => {
+    console.log('User info:', user?.email);
+    console.log('isAdmin status:', isAdmin);
+    console.log('userRole:', userRole);
+    
+    const fetchTeatros = async () => {
+      try {
+        setLoading(true);
+        const data = await dataService.getTeatros();
+        console.log('Teatros carregados:', data);
+        setTeatros(data);
+      } catch (err) {
+        console.error('Erro ao buscar teatros:', err);
+        setError('Não foi possível carregar seus teatros.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTeatros();
+  }, [dataService, isAdmin, user, userRole]);
+  
+  const renderTeatros = () => {
+    if (loading) {
+      return (
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p>Carregando seus teatros...</p>
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <div className="error-container">
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()} className="button">
+            Tentar novamente
+          </button>
+        </div>
+      );
+    }
+    
+    if (teatros.length === 0) {
+      return (
+        <div className="empty-state">
+          <p>Você ainda não participa de nenhum teatro.</p>
+          {isAdmin && (
+            <button 
+              onClick={() => navigate('/criar-teatro')} 
+              className="button"
+            >
+              Criar Novo Teatro
+            </button>
+          )}
+        </div>
+      );
+    }
+    
+    return (
+      <div className="theaters-list">
+        {teatros.map(teatro => (
+          <div 
+            key={teatro.id} 
+            className="theater-card"
+            onClick={() => navigate(`/teatro/${teatro.id}`)}
+          >
+            <h3>{teatro.titulo}</h3>
+            
+            <p>
+              <strong>Participantes:</strong> {teatro.participantes?.length || 0}
+            </p>
+            
+            <p>
+              <strong>Dias de ensaio:</strong> {teatro.diasEnsaio?.join(', ') || 'Não definido'}
+            </p>
+            
+            {teatro.temAlerta && (
+              <div className="alert-indicator"></div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+  
+  return (
+    <div className="mobile-wrapper">
+      <div className="mobile-header">
+        <h1 className="mobile-title">ServeFirst</h1>
+      </div>
+      
+      <div className="mobile-content">
+        <div className="container">
+          <h2>Meus Teatros</h2>
+          {renderTeatros()}
+          
+          {(isAdmin || forceShowButton) && (
+            <button 
+              className="floating-button"
+              onClick={() => navigate('/criar-teatro')}
+              aria-label="Criar novo teatro"
+              style={{
+                position: 'fixed',
+        </div>
+      </div>
+      
+      <FloatingActionButton />
+      <BottomNav currentPath="/" />
+    </div>
+  );
+}
+
+function FloatingActionButton() {
+  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  
+  console.log("Rendering FloatingActionButton, isAdmin:", isAdmin);
+  
+  if (!isAdmin) {
+    console.log("User is not admin, not rendering button");
+    return null;
+  }
+  
+  return (
+    <button 
+      className="floating-button"
+      onClick={() => navigate('/criar-teatro')}
+      aria-label="Criar novo teatro"
+      style={{
+        position: 'fixed',
+        bottom: '80px',
+        right: '20px',
+        width: '60px',
+        height: '60px',
+        borderRadius: '50%',
+        backgroundColor: '#fc6c5f',
+        color: 'white',
+        fontSize: '32px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: 'none',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+        cursor: 'pointer',
+        zIndex: 1000
+      }}
+    >
+      +
+    </button>
+  );
+}
+
+// Componente para listar teatros
+function Teatros() {
+  const navigate = useNavigate();
+  return (
+    <MobileWrapper title="Todos os Teatros">
+      <Home />
+    </MobileWrapper>
+  );
+}
+
+// Componente para detalhes do teatro
+function TeatroDetalhes() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [teatro, setTeatro] = useState<Teatro | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('principal');
+  const dataService = useDataService();
+  const { user } = useAuth();
+  const [isCreator, setIsCreator] = useState(false);
+  const [liderNome, setLiderNome] = useState('');
+  
+  // Função para garantir que os valores sejam strings
+  const ensureString = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && value.seconds) {
+      // Para objetos timestamp
+      const date = new Date(value.seconds * 1000);
+      return date.toLocaleDateString('pt-BR');
+    }
+    return String(value);
+  };
+  
+  useEffect(() => {
+    const fetchTeatro = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const data = await dataService.getTeatroById(id);
+        
+        if (data) {
+          console.log("Dados do teatro:", data);
+          setTeatro(data);
+          
+          // Verificar se o usuário atual é o criador
+          setIsCreator(data.criador === user?.uid);
+          
+          // Sempre definir um nome de líder, mesmo se não conseguir buscar o real
+          setLiderNome(data.criador === user?.uid ? (user?.displayName || "Você") : "Nome do Líder");
+        } else {
+          setError('Teatro não encontrado');
+        }
+      } catch (err) {
+        console.error('Erro ao buscar teatro:', err);
+        setError('Não foi possível carregar as informações do teatro.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTeatro();
+  }, [id, dataService, user]);
+  
+  const formatDate = (dateString: string | FirestoreTimestampType | undefined): string => {
+    if (!dateString) return 'Data não definida';
+    
+    try {
+      let date: Date;
+      
+      if (typeof dateString === 'string') {
+        // Se for uma string ISO ou outro formato de data
+        date = new Date(dateString);
+      } else if (typeof dateString === 'object' && 'seconds' in dateString) {
+        // Se for um objeto Timestamp do Firestore
+        date = new Date(dateString.seconds * 1000);
+      } else {
+        return 'Data não definida';
+      }
+      
+      // Verificar se a data é válida
+      if (isNaN(date.getTime())) {
+        return 'Data não definida';
+      }
+      
+      // Formatar a data no padrão brasileiro
+      return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error('Erro ao formatar data:', error, dateString);
+      return 'Data não definida';
+    }
+  };
+  
+  const getAlertas = () => {
+    if (!teatro) return [];
+    
+    const alertas = [];
+    
+    if (teatro.temAlerta) {
+      alertas.push(teatro.mensagemAlerta || 'Este teatro possui um alerta importante!');
+    }
+    
+    return alertas;
+  };
+
+  // Navegação para as páginas específicas
+  const navegarParaRoteiro = () => {
+    setActiveTab('roteiro');
+  };
+  
+  const navegarParaFigurino = () => {
+    setActiveTab('figurino');
+  };
+  
+  const navegarParaCenario = () => {
+    setActiveTab('cenario');
+  };
+  
+  const navegarParaOrdemCenarios = () => {
+    setActiveTab('ordem-cenarios');
+  };
+  
+  if (loading) {
+    return (
+      <div className="mobile-wrapper teatro-detail-bg">
+        <div className="mobile-header teatro-detail-bg">
+          <button className="back-button" onClick={() => navigate(-1)}>
+            ←
+          </button>
+          <h1 className="mobile-title">Teatro</h1>
+        </div>
+        <div className="mobile-content">
+          <div className="loading-container">
+            <div className="spinner"></div>
+            <p>Carregando detalhes do teatro...</p>
+          </div>
+        </div>
+        <BottomNav currentPath="" />
+      </div>
+    );
+  }
+  
+  if (error || !teatro) {
+    return (
+      <div className="mobile-wrapper teatro-detail-bg">
+        <div className="mobile-header teatro-detail-bg">
+          <button className="back-button" onClick={() => navigate(-1)}>
+            ←
+          </button>
+          <h1 className="mobile-title">Teatro</h1>
+        </div>
+        <div className="mobile-content">
+          <div className="error-container">
+            <p>{error || 'Não foi possível encontrar o teatro solicitado.'}</p>
+            <button onClick={() => navigate('/')} className="button">
+              Voltar para Início
+            </button>
+          </div>
+        </div>
+        <BottomNav currentPath="" />
+      </div>
+    );
+  }
+  
+  // Página de Roteiro
+  if (activeTab === 'roteiro') {
+    return (
+      <div className="mobile-wrapper teatro-detail-bg">
+        <div className="mobile-header teatro-detail-bg">
+          <button className="back-button" onClick={() => setActiveTab('principal')}>
+            ←
+          </button>
+          <h1 className="mobile-title">Teatro</h1>
+        </div>
+        <div className="mobile-content">
+          <div className="detail-box">
+            Roteiro:
+          </div>
+          
+          <div className="detail-info-coral">
+            <div className="detail-info-item">
+              <div className="detail-info-label">Quantidade de Atos</div>
+              <div>{teatro.numeroAtos || '(Não definido)'}</div>
+            </div>
+            
+            <div className="detail-info-item">
+              <div className="detail-info-label">Data de Apresentação:</div>
+              <div>{formatDate(teatro.dataApresentacao)}</div>
+            </div>
+            
+            {teatro.roteiro && (
+              <div className="detail-info-item">
+                <div className="detail-info-label">Texto do Roteiro:</div>
+                <div>{teatro.roteiro}</div>
+              </div>
+            )}
+          </div>
+        </div>
+        <BottomNav currentPath="" />
+      </div>
+    );
+  }
+  
+  // Página de Figurino
+  if (activeTab === 'figurino') {
+    return (
+      <div className="mobile-wrapper teatro-detail-bg">
+        <div className="mobile-header teatro-detail-bg">
+          <button className="back-button" onClick={() => setActiveTab('principal')}>
+            ←
+          </button>
+          <h1 className="mobile-title">Teatro</h1>
+        </div>
+        <div className="mobile-content">
+          <div className="detail-box">
+            Figurinos:
+          </div>
+          
+          <div className="detail-info-coral">
+            <div className="detail-info-item">
+              <div className="detail-info-label">Quantidade de Figurinos:</div>
+              <div>{teatro.quantidadeFigurinos || '(Não definido)'}</div>
+            </div>
+            
+            <div className="detail-info-item">
+              <div className="detail-info-label">Tema de Figurinos:</div>
+              <div>{teatro.temaFigurinos || '(Não definido)'}</div>
+            </div>
+            
+            {teatro.figurinos && teatro.figurinos.length > 0 && (
+              <div className="detail-info-item">
+                <div className="detail-info-label">Lista de Figurinos:</div>
+                <ul className="figurinos-list">
+                  {teatro.figurinos.map((figurino, index) => (
+                    <li key={index}>{figurino}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+        <BottomNav currentPath="" />
+      </div>
+    );
+  }
+  
+  // Página de Cenário
+  if (activeTab === 'cenario') {
+    return (
+      <div className="mobile-wrapper teatro-detail-bg">
+        <div className="mobile-header teatro-detail-bg">
+          <button className="back-button" onClick={() => setActiveTab('principal')}>
+            ←
+          </button>
+          <h1 className="mobile-title">Teatro</h1>
+        </div>
+        <div className="mobile-content">
+          <div className="detail-box">
+            Cenarios:
+          </div>
+          
+          <div className="detail-info-coral">
+            <div className="detail-info-item">
+              <div className="detail-info-label">Quantidade de Cenas:</div>
+              <div>{teatro.quantidadeCenas || '(Não definido)'}</div>
+            </div>
+            
+            {teatro.cenarios && teatro.cenarios.length > 0 && (
+              <div className="detail-info-item">
+                <div className="detail-info-label">Lista de Cenários:</div>
+                <ul className="cenarios-list">
+                  {teatro.cenarios.map((cenario, index) => (
+                    <li key={index}>{cenario}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          
+          <button 
+            className="detail-button-dark"
+            onClick={navegarParaOrdemCenarios}
+          >
+            Ordem dos Cenarios
+          </button>
+        </div>
+        <BottomNav currentPath="" />
+      </div>
+    );
+  }
+  
+  // Página de Ordem dos Cenários
+  if (activeTab === 'ordem-cenarios') {
+    return (
+      <div className="mobile-wrapper teatro-detail-bg">
+        <div className="mobile-header teatro-detail-bg">
+          <button className="back-button" onClick={() => setActiveTab('cenario')}>
+            ←
+          </button>
+          <h1 className="mobile-title">Teatro</h1>
+        </div>
+        <div className="mobile-content">
+          <div className="detail-box">
+            Ordem dos Cenarios:
+          </div>
+          
+          {teatro.ordemCenarios ? (
+            <div className="ordem-cenarios">
+              <p>{teatro.ordemCenarios}</p>
+            </div>
+          ) : (
+            <p className="no-data">Nenhuma ordem de cenários definida ainda.</p>
+          )}
+        </div>
+        <BottomNav currentPath="" />
+      </div>
+    );
+  }
+  
+  // Página principal
+  return (
+    <div className="mobile-wrapper teatro-detail-bg">
+      <div className="mobile-header teatro-detail-bg">
+        <button className="back-button" onClick={() => navigate(-1)}>
+          ←
+        </button>
+        <h1 className="mobile-title">Teatro</h1>
+      </div>
+      <div className="mobile-content">
+        <h3 className="teatro-detalhes-header">Detalhes:</h3>
+        
+        <div className="teatro-tab-cards">
+          <div 
+            className="teatro-card-button" 
+            onClick={navegarParaRoteiro}
+          >
+            <span>Roteiro</span>
+          </div>
+          <div 
+            className="teatro-card-button" 
+            onClick={navegarParaFigurino}
+          >
+            <span>Figurino</span>
+          </div>
+          <div 
+            className="teatro-card-button" 
+            onClick={navegarParaCenario}
+          >
+            <span>Cenário</span>
+          </div>
+        </div>
+        
+        {getAlertas().length > 0 && (
+          <div className="teatro-alert-box">
+            <h3>Aviso:</h3>
+            {getAlertas().map((alerta, index) => (
+              <p key={index}>{alerta}</p>
+            ))}
+          </div>
+        )}
+        
+        <div className="teatro-detail-box">
+          <p>
+            <strong>Lider:</strong>
+            <br />
+            {liderNome || teatro.criador}
+          </p>
+          <p>
+            <strong>Data de Apresentação:</strong>
+            <br />
+            {formatDate(teatro.dataApresentacao)}
+          </p>
+          {teatro.diasEnsaio && teatro.diasEnsaio.length > 0 && (
+            <p>
+              <strong>Dias de Ensaio:</strong>
+              <br />
+              {teatro.diasEnsaio.join(', ')}
+            </p>
+          )}
+          {teatro.titulo && (
+            <p>
+              <strong>Título:</strong>
+              <br />
+              {teatro.titulo}
+            </p>
+          )}
+          {teatro.descricao && (
+            <p>
+              <strong>Descrição:</strong>
+              <br />
+              {teatro.descricao}
+            </p>
+          )}
+        </div>
+        
+        {isCreator && (
+          <button 
+            className="detail-button-dark"
+            onClick={() => navigate(`/editar-teatro/${id}`)}
+          >
+            Editar Teatro
+          </button>
+        )}
+      </div>
+      <BottomNav currentPath="" />
+    </div>
+  );
+}
+
+// Componente para criar teatro com fluxo em etapas
+function CriarTeatro() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const dataService = useDataService();
+  const [etapa, setEtapa] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  // Form states
+  const [titulo, setTitulo] = useState('');
+  const [diasEnsaio, setDiasEnsaio] = useState('');
+  const [dataApresentacao, setDataApresentacao] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [quantidadeCenas, setQuantidadeCenas] = useState('');
+  const [cenario, setCenario] = useState('');
+  const [quantidadeAtores, setQuantidadeAtores] = useState('');
+  const [figurino, setFigurino] = useState('');
+  const [quantidadeAtos, setQuantidadeAtos] = useState('');
+  const [roteiro, setRoteiro] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportLoading(true);
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        if (etapa === 3) {
+          setCenario(content);
+        } else if (etapa === 5) {
+          setRoteiro(content);
+        } else if (etapa === 7) {
+          setFigurino(content);
+        }
+      } catch (error) {
+        console.error('Erro ao processar arquivo:', error);
+        setError('Não foi possível processar o arquivo.');
+      } finally {
+        setImportLoading(false);
+      }
+    };
+    
+    reader.onerror = () => {
+      setError('Erro ao ler o arquivo.');
+      setImportLoading(false);
+    };
+    
+    reader.readAsText(file);
+  };
+  
+  const criarTeatroFirestore = async () => {
+    if (!user) {
+      setError('Você precisa estar logado para criar um teatro.');
+      return;
+    }
+    
+    if (!titulo || !diasEnsaio || !dataApresentacao) {
+      setError('Por favor, preencha todos os campos obrigatórios.');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const novoTeatro: Omit<Teatro, 'id'> = {
+        titulo,
+        diasEnsaio: diasEnsaio.split(',').map(d => d.trim()),
+        dataApresentacao,
+        descricao,
+        quantidadeCenas: parseInt(quantidadeCenas) || 0,
+        cenario,
+        quantidadeAtores: parseInt(quantidadeAtores) || 0,
+        figurino,
+        numeroAtos: parseInt(quantidadeAtos) || 0,
+        roteiro,
+        participantes: [user.uid],
+        criador: user.uid,
+      };
+      
+      const id = await dataService.createTeatro(novoTeatro);
+      console.log('Teatro criado com sucesso:', id);
+      navigate(`/teatro/${id}`);
+    } catch (err) {
+      console.error('Erro ao criar teatro:', err);
+      setError('Ocorreu um erro ao criar o teatro. Por favor, tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const avancarEtapa = () => {
+    if (etapa < 8) {
+      setEtapa(etapa + 1);
+      setError('');
+    } else {
+      criarTeatroFirestore();
+    }
+  };
+  
+  const voltarEtapa = () => {
+    if (etapa > 1) {
+      setEtapa(etapa - 1);
+      setError('');
+    } else {
+      navigate(-1);
+    }
+  };
+  
+  const renderizarEtapa = () => {
+    switch (etapa) {
+      case 1:
+        return (
+          <div className="create-container">
+            <h2>Criar Grupo:</h2>
+            
+            <div className="form-group">
+              <label>Título</label>
+              <input
+                type="text"
+                className="create-input"
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Dias de Ensaio:</label>
+              <input
+                type="text"
+                className="create-input"
+                value={diasEnsaio}
+                onChange={(e) => setDiasEnsaio(e.target.value)}
+                placeholder="Ex: Segunda, Quarta, Sexta"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Data de Apresentação</label>
+              <input
+                type="date"
+                className="create-input"
+                value={dataApresentacao}
+                onChange={(e) => setDataApresentacao(e.target.value)}
+              />
+            </div>
+            
+            <button
+              className="teatro-save-button"
+              onClick={avancarEtapa}
+              disabled={loading}
+            >
+              Recriar
+            </button>
+          </div>
+        );
+      
+      case 2:
+        return (
+          <div className="create-container">
+            <h2>Descrição</h2>
+            
+            <div className="form-group">
+              <label>Quantidade de Cenas:</label>
+              <input
+                type="number"
+                className="create-input"
+                value={quantidadeCenas}
+                onChange={(e) => setQuantidadeCenas(e.target.value)}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Cenario:</label>
+              <textarea
+                className="create-textarea"
+                value={cenario}
+                onChange={(e) => setCenario(e.target.value)}
+                rows={6}
+              />
+            </div>
+            
+            <button
+              className="teatro-save-button"
+              onClick={avancarEtapa}
+              disabled={loading}
+            >
+              Ordem Dos Cenarios
+            </button>
+            
+            <div className="separator">ou</div>
+            
+            <button
+              className="import-button"
+              onClick={handleImportClick}
+              disabled={importLoading}
+            >
+              Importar Documento
+            </button>
+          </div>
+        );
+      
+      case 3:
+        return (
+          <div className="create-container">
+            <h2>Descrição</h2>
+            
+            <div className="form-group">
+              <label>Quantidade de Atores</label>
+              <input
+                type="number"
+                className="create-input"
+                value={quantidadeAtores}
+                onChange={(e) => setQuantidadeAtores(e.target.value)}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Figurino:</label>
+              <textarea
+                className="create-textarea"
+                value={figurino}
+                onChange={(e) => setFigurino(e.target.value)}
+                rows={6}
+              />
+            </div>
+            
+            <button
+              className="teatro-save-button"
+              onClick={avancarEtapa}
+              disabled={loading}
+            >
+              Criar Grupo
+            </button>
+            
+            <div className="separator">ou</div>
+            
+            <button
+              className="import-button"
+              onClick={handleImportClick}
+              disabled={importLoading}
+            >
+              Importar Documento
+            </button>
+          </div>
+        );
+      
+      case 4:
+        return (
+          <div className="create-container">
+            <h2>Descrição</h2>
+            
+            <div className="form-group">
+              <label>Quantidade de Cenas:</label>
+              <input
+                type="number"
+                className="create-input"
+                value={quantidadeCenas}
+                onChange={(e) => setQuantidadeCenas(e.target.value)}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Cenario:</label>
+              <textarea
+                className="create-textarea"
+                value={cenario}
+                onChange={(e) => setCenario(e.target.value)}
+                rows={6}
+              />
+            </div>
+            
+            <button
+              className="teatro-save-button"
+              onClick={avancarEtapa}
+              disabled={loading}
+            >
+              Recriar Grupo
+            </button>
+            
+            <div className="separator">ou</div>
+            
+            <button
+              className="import-button"
+              onClick={handleImportClick}
+              disabled={importLoading}
+            >
+              Importar Documento
+            </button>
+          </div>
+        );
+      
+      case 5:
+        return (
+          <div className="create-container">
+            <h2>Descrição</h2>
+            
+            <div className="form-group">
+              <label>Quantidade de Atos</label>
+              <input
+                type="number"
+                className="create-input"
+                value={quantidadeAtos}
+                onChange={(e) => setQuantidadeAtos(e.target.value)}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Roteiro:</label>
+              <textarea
+                className="create-textarea"
+                value={roteiro}
+                onChange={(e) => setRoteiro(e.target.value)}
+                rows={6}
+              />
+            </div>
+            
+            <button
+              className="teatro-save-button"
+              onClick={avancarEtapa}
+              disabled={loading}
+            >
+              Criar Grupo
+            </button>
+            
+            <div className="separator">ou</div>
+            
+            <button
+              className="import-button"
+              onClick={handleImportClick}
+              disabled={importLoading}
+            >
+              Importar Documento
+            </button>
+          </div>
+        );
+      
+      case 6:
+        return (
+          <div className="create-container">
+            <h2>Descrição</h2>
+            
+            <div className="form-group">
+              <label>Quantidade de Atos</label>
+              <input
+                type="number"
+                className="create-input"
+                value={quantidadeAtos}
+                onChange={(e) => setQuantidadeAtos(e.target.value)}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Roteiro:</label>
+              <textarea
+                className="create-textarea"
+                value={roteiro}
+                onChange={(e) => setRoteiro(e.target.value)}
+                rows={6}
+              />
+            </div>
+            
+            <button
+              className="teatro-save-button"
+              onClick={avancarEtapa}
+              disabled={loading}
+            >
+              Recriar Grupo
+            </button>
+            
+            <div className="separator">ou</div>
+            
+            <button
+              className="import-button"
+              onClick={handleImportClick}
+              disabled={importLoading}
+            >
+              Importar Documento
+            </button>
+          </div>
+        );
+      
+      case 7:
+        return (
+          <div className="create-container">
+            <h2>Descrição</h2>
+            
+            <div className="form-group">
+              <label>Quantidade de Atores</label>
+              <input
+                type="number"
+                className="create-input"
+                value={quantidadeAtores}
+                onChange={(e) => setQuantidadeAtores(e.target.value)}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Figurino:</label>
+              <textarea
+                className="create-textarea"
+                value={figurino}
+                onChange={(e) => setFigurino(e.target.value)}
+                rows={6}
+              />
+            </div>
+            
+            <button
+              className="teatro-save-button"
+              onClick={avancarEtapa}
+              disabled={loading}
+            >
+              Recriar Grupo
+            </button>
+            
+            <div className="separator">ou</div>
+            
+            <button
+              className="import-button"
+              onClick={handleImportClick}
+              disabled={importLoading}
+            >
+              Importar Documento
+            </button>
+          </div>
+        );
+      
+      case 8:
+        return (
+          <div className="create-container">
+            <h2>Convidar participantes</h2>
+            
+            <div className="form-group">
+              <label>Email dos Participantes:</label>
+              <input
+                type="email"
+                className="create-input"
+                placeholder="email@exemplo.com"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>ID</label>
+              <input
+                type="text"
+                className="create-input"
+                placeholder="ID do grupo"
+                disabled
+              />
+            </div>
+            
+            <button
+              className="teatro-save-button"
+              onClick={avancarEtapa}
+              disabled={loading}
+            >
+              Copiar id/Criar Grupo
+            </button>
+          </div>
+        );
+    }
+  };
+  
+  return (
+    <div className="mobile-wrapper">
+      <div className="mobile-header">
+        <button className="back-button" onClick={voltarEtapa}>
+          ←
+        </button>
+        <h1 className="mobile-title">
+          {etapa === 8 ? 'Convidar participantes' : 'Descrição'}
+        </h1>
+      </div>
+      
+      <div className="mobile-content container">
+        {renderizarEtapa()}
+        
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+          accept=".txt,.docx,.pdf,.doc"
+        />
+      </div>
+      
+      <BottomNav currentPath="/teatros" />
+    </div>
+  );
+}
+
+// Componente de busca
+function Buscar() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [resultados, setResultados] = useState<Teatro[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const dataService = useDataService();
+  const navigate = useNavigate();
+  
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!searchTerm.trim()) return;
+    
+    try {
+      setIsSearching(true);
+      setHasSearched(true);
+      
+      // Buscar teatros e filtrar pelo termo de pesquisa
+      const teatros = await dataService.getTeatros();
+      const filtered = teatros.filter(teatro => 
+        teatro.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        teatro.descricao.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      
+      setResultados(filtered);
+    } catch (err) {
+      console.error('Erro na busca:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+  
+  return (
+    <MobileWrapper title="Buscar" showBack={false}>
+      <div className="container">
+        <form onSubmit={handleSearch}>
+          <div className="search-container">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Introduza o id do grupo"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+            <button type="submit" className="search-icon">
+              🔍
+            </button>
+          </div>
+        </form>
+        
+        {isSearching && (
+          <div className="loading-container">
+            <div className="spinner"></div>
+            <p>Buscando...</p>
+          </div>
+        )}
+        
+        {hasSearched && !isSearching && resultados.length === 0 && (
+          <div className="empty-state">
+            <p>Nenhum resultado encontrado para "{searchTerm}"</p>
+          </div>
+        )}
+        
+        {hasSearched && !isSearching && resultados.length > 0 && (
+          <div>
+            {resultados.map(teatro => (
+              <div 
+                key={teatro.id} 
+                className="search-result-card"
+                onClick={() => navigate(`/teatro/${teatro.id}`)}
+              >
+                <h3>{teatro.titulo}</h3>
+                <p>Roteiro</p>
+                <p>Data de Apresentação</p>
+                <div className="action-dot">
+                  <span>+</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </MobileWrapper>
+  );
+}
+
+// Componente para renderizar o Calendário
+interface CalendarProps {
+  selectedDate: Date;
+  onSelectDate: (date: Date) => void;
+  events: Evento[];
+}
+
+function Calendar({ selectedDate, onSelectDate, events }: CalendarProps) {
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date(selectedDate));
+  
+  // Nomes dos meses em português
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  
+  // Nomes dos dias da semana abreviados em português
+  const weekdayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+  
+  // Função para navegar para o mês anterior
+  const prevMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+  
+  // Função para navegar para o próximo mês
+  const nextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+  
+  // Gerar dias do calendário
+  const generateCalendarDays = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    
+    // Primeiro dia do mês atual
+    const firstDayOfMonth = new Date(year, month, 1);
+    // Último dia do mês atual
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    
+    // Índice do dia da semana do primeiro dia do mês (0 = domingo, 1 = segunda, etc)
+    const firstDayWeekday = firstDayOfMonth.getDay();
+    
+    // Número de dias no mês
+    const daysInMonth = lastDayOfMonth.getDate();
+    
+    // Dias do mês anterior para preencher o início do calendário
+    const daysFromPrevMonth = firstDayWeekday;
+    
+    // Último dia do mês anterior
+    const lastDayOfPrevMonth = new Date(year, month, 0).getDate();
+    
+    const days = [];
+    
+    // Adicionar dias do mês anterior
+    for (let i = daysFromPrevMonth - 1; i >= 0; i--) {
+      const day = lastDayOfPrevMonth - i;
+      const date = new Date(year, month - 1, day);
+      days.push({ date, isCurrentMonth: false });
+    }
+    
+    // Adicionar dias do mês atual
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      days.push({ date, isCurrentMonth: true });
+    }
+    
+    // Determinar quantos dias do próximo mês precisamos adicionar
+    const remainingSlots = 42 - days.length; // 6 linhas * 7 dias = 42
+    
+    // Adicionar dias do próximo mês
+    for (let day = 1; day <= remainingSlots; day++) {
+      const date = new Date(year, month + 1, day);
+      days.push({ date, isCurrentMonth: false });
+    }
+    
+    return days;
+  };
+  
+  // Verificar se uma data tem eventos
+  const hasEvents = (date: Date) => {
+    return events.some(event => {
+      const eventDate = new Date(event.data);
+      return (
+        eventDate.getDate() === date.getDate() &&
+        eventDate.getMonth() === date.getMonth() &&
+        eventDate.getFullYear() === date.getFullYear()
+      );
+    });
+  };
+  
+  // Verificar se é a data atual
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
+  };
+  
+  // Verificar se é a data selecionada
+  const isSelected = (date: Date) => {
+    return (
+      date.getDate() === selectedDate.getDate() &&
+      date.getMonth() === selectedDate.getMonth() &&
+      date.getFullYear() === selectedDate.getFullYear()
+    );
+  };
+  
+  // Dias do calendário
+  const calendarDays = generateCalendarDays();
+  
+  return (
+    <div className="calendar-container">
+      <div className="calendar-header">
+        <h2 className="calendar-title">
+          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+        </h2>
+        <div className="calendar-nav">
+          <button onClick={prevMonth} className="calendar-nav-button">
+            &lt;
+          </button>
+          <button onClick={nextMonth} className="calendar-nav-button">
+            &gt;
+          </button>
+        </div>
+      </div>
+      
+      <div className="calendar-weekdays">
+        {weekdayNames.map((weekday, index) => (
+          <div key={index} className="weekday">
+            {weekday}
+          </div>
+        ))}
+      </div>
+      
+      <div className="calendar-days">
+        {calendarDays.map((day, index) => (
+          <div
+            key={index}
+            className={`calendar-day ${!day.isCurrentMonth ? 'other-month' : ''} ${
+              isToday(day.date) ? 'today' : ''
+            } ${isSelected(day.date) ? 'selected' : ''} ${
+              hasEvents(day.date) ? 'has-event' : ''
+            }`}
+            onClick={() => onSelectDate(day.date)}
+          >
+            {day.date.getDate()}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Componente de Eventos
+function Eventos() {
+  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [teatros, setTeatros] = useState<Teatro[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const dataService = useDataService();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Buscar tanto eventos quanto teatros
+        const [eventosData, teatrosData] = await Promise.all([
+          dataService.getEventos(),
+          dataService.getTeatros()
+        ]);
+        
+        // Obter teatros em que o usuário participa
+        let meusTeatros = teatrosData;
+        
+        // Filtrar apenas os teatros em que o usuário participa
+        if (user) {
+          meusTeatros = teatrosData.filter(teatro => 
+            teatro.criador === user.uid || 
+            (teatro.participantes && teatro.participantes.includes(user.uid))
+          );
+        }
+        
+        console.log("Meus teatros:", meusTeatros);
+        
+        // Usar dados reais ou dados de exemplo se não houver eventos
+        setEventos(eventosData.length > 0 ? eventosData : [
+          {
+            id: '1',
+            titulo: 'Evento exemplo',
+            descricao: 'Descrição do evento exemplo',
+            data: new Date().toISOString().split('T')[0],
+            local: 'Local exemplo',
+            organizador: 'Organizador exemplo'
+          }
+        ]);
+        
+        // Garantir que temos teatros para mostrar
+        setTeatros(meusTeatros);
+        
+        // Debug das datas de apresentação
+        meusTeatros.forEach(teatro => {
+          if (teatro.dataApresentacao) {
+            console.log(`Teatro: ${teatro.titulo}, Data: ${teatro.dataApresentacao}`);
+          } else {
+            console.log(`Teatro sem data de apresentação: ${teatro.titulo}`);
+          }
+        });
+        
+      } catch (err) {
+        console.error('Erro ao buscar dados:', err);
+        setError('Não foi possível carregar os eventos e teatros.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [dataService, user]);
+  
+  // Combinar eventos e datas de apresentação dos teatros
+  const getAllEvents = () => {
+    // Mapear datas de apresentação dos teatros para formato de eventos
+    const teatroEvents = teatros
+      .filter(teatro => teatro.dataApresentacao) // Garantir que só processamos teatros com data
+      .map(teatro => {
+        // Verificar e transformar a data para garantir consistência
+        let dataApresentacao = '';
+        if (typeof teatro.dataApresentacao === 'string') {
+          // Se já é string, manter como está
+          dataApresentacao = teatro.dataApresentacao;
+        } else if (teatro.dataApresentacao && (teatro.dataApresentacao as any).seconds) {
+          // Se é Timestamp do Firestore, converter para string
+          const timestamp = teatro.dataApresentacao as any;
+          const date = new Date(timestamp.seconds * 1000);
+          dataApresentacao = date.toISOString().split('T')[0];
+        }
+        
+        return {
+          id: `teatro-${teatro.id}`,
+          titulo: teatro.titulo,
+          descricao: `Apresentação: ${teatro.titulo}`,
+          data: dataApresentacao,
+          local: teatro.local || 'Local a confirmar',
+          organizador: teatro.criador === user?.uid ? 'Você' : 'Outro',
+          teatroId: teatro.id,
+          tipo: 'apresentacao'
+        };
+      });
+    
+    // Adicionar dias de ensaio dos teatros como eventos
+    const ensaioEvents: any[] = [];
+    teatros.forEach(teatro => {
+      if (Array.isArray(teatro.diasEnsaio) && teatro.diasEnsaio.length > 0) {
+        // Mapear abreviações dos dias para números (0 = domingo, 1 = segunda, etc.)
+        const diasMap: {[key: string]: number} = {
+          'Dom': 0, 'Seg': 1, 'Ter': 2, 'Qua': 3, 
+          'Qui': 4, 'Sex': 5, 'Sáb': 6,
+          'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3,
+          'Quinta': 4, 'Sexta': 5, 'Sábado': 6
+        };
+        
+        // Para cada dia de ensaio, criar eventos para as próximas 4 semanas
+        teatro.diasEnsaio.forEach(dia => {
+          const diaSemana = diasMap[dia];
+          if (diaSemana !== undefined) {
+            // Criar eventos para as próximas 4 semanas
+            for (let i = 0; i < 4; i++) {
+              const dataEnsaio = new Date();
+              const hoje = dataEnsaio.getDay(); // Dia atual da semana (0-6)
+              
+              // Calcular quantos dias adicionar para chegar no próximo dia de ensaio
+              let diasParaAdicionar = diaSemana - hoje;
+              if (diasParaAdicionar <= 0) {
+                diasParaAdicionar += 7; // Ir para a próxima semana
+              }
+              
+              // Adicionar semanas adicionais
+              diasParaAdicionar += i * 7;
+              
+              dataEnsaio.setDate(dataEnsaio.getDate() + diasParaAdicionar);
+              
+              ensaioEvents.push({
+                id: `ensaio-${teatro.id}-${i}-${dia}`,
+                titulo: `Ensaio: ${teatro.titulo}`,
+                descricao: `Ensaio para ${teatro.titulo}`,
+                data: dataEnsaio.toISOString().split('T')[0], // Formato YYYY-MM-DD
+                local: teatro.local || 'Local a confirmar',
+                organizador: teatro.criador === user?.uid ? 'Você' : 'Outro',
+                teatroId: teatro.id,
+                tipo: 'ensaio'
+              });
+            }
+          }
+        });
+      }
+    });
+    
+    // Combinar todos os eventos
+    return [...eventos, ...teatroEvents, ...ensaioEvents];
+  };
+  
+  // Todos os eventos combinados
+  const allEvents = getAllEvents();
+  
+  // Filtrar eventos da data selecionada
+  const filteredEvents = allEvents.filter(evento => {
+    if (!evento.data) return false;
+    
+    const eventDate = new Date(evento.data);
+    return (
+      eventDate.getDate() === selectedDate.getDate() &&
+      eventDate.getMonth() === selectedDate.getMonth() &&
+      eventDate.getFullYear() === selectedDate.getFullYear()
+    );
+  });
+  
+  // Formatar data para exibição
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+  };
+  
+  // Determinar a cor do evento com base no tipo
+  const getEventColor = (evento: any) => {
+    if (evento.tipo === 'apresentacao') return 'event-presentation';
+    if (evento.tipo === 'ensaio') return 'event-rehearsal';
+    return '';
+  };
+  
+  return (
+    <MobileWrapper title="Agenda" showBack={false}>
+      <div className="container">
+        {loading ? (
+          <div className="loading-container">
+            <div className="spinner"></div>
+            <p>Carregando agenda...</p>
+          </div>
+        ) : error ? (
+          <div className="error-container">
+            <p>{error}</p>
+            <button onClick={() => window.location.reload()} className="button">Tentar novamente</button>
+          </div>
+        ) : (
+          <>
+            <Calendar
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              events={allEvents}
+            />
+            
+            <div className="events-list-container">
+              <h3 className="events-date-header">
+                {selectedDate.getDate()} de {
+                  ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedDate.getMonth()]
+                } de {selectedDate.getFullYear()}
+              </h3>
+              
+              {filteredEvents.length === 0 ? (
+                <div className="empty-state">
+                  <p>Nenhum evento para esta data</p>
+                </div>
+              ) : (
+                filteredEvents.map((evento: any) => (
+                  <div 
+                    key={evento.id} 
+                    className={`event-card ${getEventColor(evento)}`}
+                    onClick={() => {
+                      if (evento.teatroId) {
+                        navigate(`/teatro/${evento.teatroId}`);
+                      }
+                    }}
+                  >
+                    <div className="event-header">
+                      <h3 className="event-title">{evento.titulo}</h3>
+                      {evento.tipo && (
+                        <span className="event-type-badge">
+                          {evento.tipo === 'apresentacao' ? '🎭 Apresentação' : '🎬 Ensaio'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="event-location">{evento.local}</p>
+                    {evento.horarioInicio && (
+                      <p className="event-time">
+                        {evento.horarioInicio} - {evento.horarioFim || 'A confirmar'}
+                      </p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </MobileWrapper>
+  );
+}
+
+// Componente de Perfil
+function Perfil() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [photoURL, setPhotoURL] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  useEffect(() => {
+    // Check for Google profile photo
+    if (user?.photoURL) {
+      setPhotoURL(user.photoURL);
+    }
+  }, [user]);
+  
+  const handleLogout = async () => {
+    if (window.confirm('Tem certeza que deseja sair?')) {
+      try {
+        await logout();
+        navigate('/login');
+      } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+      }
+    }
+  };
+  
+  const getInitial = () => {
+    if (!user || !user.displayName) return '?';
+    return user.displayName.charAt(0).toUpperCase();
+  };
+  
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      
+      reader.onload = async () => {
+        const base64Image = reader.result as string;
+        
+        // Here you would typically upload to Firebase Storage
+        // For now, we'll just update the local state
+        setPhotoURL(base64Image);
+        
+        // Update user profile
+        if (user) {
+          try {
+            await updateProfile(user, {
+              photoURL: base64Image
+            });
+          } catch (error) {
+            console.error('Error updating profile photo:', error);
+          }
+        }
+      };
+      
+      reader.onerror = () => {
+        console.error('Error reading file');
+        setIsUploading(false);
+      };
+    } catch (error) {
+      console.error('Error handling file:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  return (
+    <div className="mobile-wrapper">
+      <div className="mobile-header">
+        <h1 className="mobile-title">Perfil</h1>
+      </div>
+      
+      <div className="mobile-content">
+        <div className="profile-container">
+          <div className="profile-photo-container">
+            {photoURL ? (
+              <div 
+                className="profile-avatar" 
+                style={{ 
+                  backgroundImage: `url(${photoURL})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center'
+                }}
+              >
+                {isUploading && <div className="spinner"></div>}
+              </div>
+            ) : (
+              <div className="profile-avatar">
+                {isUploading ? <div className="spinner"></div> : getInitial()}
+              </div>
+            )}
+            
+            <button 
+              onClick={handleUploadClick} 
+              className="profile-photo-button"
+              disabled={isUploading}
+            >
+              {isUploading ? 'Carregando...' : 'Alterar foto'}
+            </button>
+            
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              accept="image/*"
+              onChange={handleFileChange}
+            />
+          </div>
+          
+          <div className="profile-info-card">
+            <div className="profile-info-item">
+              <div className="profile-info-label">Nome:</div>
+              <div>{user?.displayName || 'Usuário'}</div>
+            </div>
+            
+            <div className="profile-info-item">
+              <div className="profile-info-label">Email:</div>
+              <div>{user?.email || 'email@exemplo.com'}</div>
+            </div>
+          </div>
+          
+          <button 
+            className="profile-button profile-button-primary"
+            onClick={() => navigate('/alterar-senha')}
+          >
+            <span className="profile-button-icon">🔒</span>
+            Alterar Senha
+          </button>
+          
+          <button 
+            className="profile-button profile-button-secondary"
+            onClick={handleLogout}
+          >
+            <span className="profile-button-icon">↩</span>
+            Sair da conta
+          </button>
+        </div>
+      </div>
+      
+      <BottomNav currentPath="/perfil" />
+    </div>
+  );
+}
+
+// Componente para editar Teatro
+function EditarTeatro() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [teatro, setTeatro] = useState<Teatro | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+  const dataService = useDataService();
+  
+  // Form states
+  const [titulo, setTitulo] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [dataApresentacao, setDataApresentacao] = useState('');
+  const [diasEnsaio, setDiasEnsaio] = useState<string[]>([]);
+  const [temaFigurinos, setTemaFigurinos] = useState('');
+  const [numeroAtos, setNumeroAtos] = useState<number>(0);
+  const [quantidadeCenas, setQuantidadeCenas] = useState<number>(0);
+  const [quantidadeFigurinos, setQuantidadeFigurinos] = useState<number>(0);
+  const [local, setLocal] = useState('');
+  const [temAlerta, setTemAlerta] = useState(false);
+  const [mensagemAlerta, setMensagemAlerta] = useState('');
+  
+  useEffect(() => {
+    const fetchTeatro = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const data = await dataService.getTeatroById(id);
+        
+        if (data) {
+          setTeatro(data);
+          
+          // Verificar se o usuário atual é o criador
+          if (data.criador !== user?.uid) {
+            setError('Você não tem permissão para editar este teatro');
+            return;
+          }
+          
+          // Preencher os campos do formulário
+          setTitulo(data.titulo || '');
+          setDescricao(data.descricao || '');
+          
+          // Formatar data para o formato de input date
+          if (data.dataApresentacao) {
+            let date: Date;
+            if (typeof data.dataApresentacao === 'string') {
+              date = new Date(data.dataApresentacao);
+            } else if (data.dataApresentacao.seconds) {
+              date = new Date(data.dataApresentacao.seconds * 1000);
+            } else {
+              date = new Date();
+            }
+            
+            // Formato YYYY-MM-DD para input date
+            const formattedDate = date.toISOString().split('T')[0];
+            setDataApresentacao(formattedDate);
+          }
+          
+          setDiasEnsaio(data.diasEnsaio || []);
+          setTemaFigurinos(data.temaFigurinos || '');
+          setNumeroAtos(data.numeroAtos || 0);
+          setQuantidadeCenas(data.quantidadeCenas || 0);
+          setQuantidadeFigurinos(data.quantidadeFigurinos || 0);
+          setLocal(data.local || '');
+          setTemAlerta(data.temAlerta || false);
+          setMensagemAlerta(data.mensagemAlerta || '');
+        } else {
+          setError('Teatro não encontrado');
+        }
+      } catch (err) {
+        console.error('Erro ao buscar teatro:', err);
+        setError('Não foi possível carregar as informações do teatro.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTeatro();
+  }, [id, dataService, user]);
+  
+  const handleDayToggle = (day: string) => {
+    setDiasEnsaio(prev => 
+      prev.includes(day) 
+        ? prev.filter(d => d !== day) 
+        : [...prev, day]
+    );
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!id || !teatro) return;
+    
+    try {
+      setSaving(true);
+      
+      const updates: Partial<Teatro> = {
+        titulo,
+        descricao,
+        dataApresentacao,
+        diasEnsaio,
+        temaFigurinos,
+        numeroAtos,
+        quantidadeCenas,
+        quantidadeFigurinos,
+        local,
+        temAlerta,
+        mensagemAlerta,
+        atualizadoEm: new Date().toISOString()
+      };
+      
+      const success = await dataService.updateTeatro(id, updates);
+      
+      if (success) {
+        navigate(`/teatro/${id}`);
+      } else {
+        setError('Não foi possível atualizar o teatro.');
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar teatro:', err);
+      setError('Ocorreu um erro ao salvar as alterações.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  if (loading) {
+    return (
+      <div className="mobile-wrapper teatro-detail-bg">
+        <div className="mobile-header teatro-detail-bg">
+          <button className="back-button" onClick={() => navigate(-1)}>
+            ←
+          </button>
+          <h1 className="mobile-title">Editar Teatro</h1>
+        </div>
+        <div className="mobile-content">
+          <div className="loading-container">
+            <div className="spinner"></div>
+            <p>Carregando detalhes do teatro...</p>
+          </div>
+        </div>
+        <BottomNav currentPath="" />
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="mobile-wrapper teatro-detail-bg">
+        <div className="mobile-header teatro-detail-bg">
+          <button className="back-button" onClick={() => navigate(-1)}>
+            ←
+          </button>
+          <h1 className="mobile-title">Editar Teatro</h1>
+        </div>
+        <div className="mobile-content">
+          <div className="error-container">
+            <p>{error}</p>
+            <button onClick={() => navigate(-1)} className="button">
+              Voltar
+            </button>
+          </div>
+        </div>
+        <BottomNav currentPath="" />
+      </div>
+    );
+  }
+  
+  const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+  
+  return (
+    <div className="mobile-wrapper">
+      <div className="mobile-header teatro-detail-bg">
+        <button className="back-button" onClick={() => navigate(-1)}>
+          ←
+        </button>
+        <h1 className="mobile-title">Editar Teatro</h1>
+      </div>
+      <div className="mobile-content">
+        <form onSubmit={handleSubmit} className="teatro-edit-form">
+          <div className="form-section">
+            <h3 className="form-section-title">Informações Básicas</h3>
+            
+            <div className="form-group">
+              <label htmlFor="titulo">Título do Teatro</label>
+              <input
+                id="titulo"
+                type="text"
+                value={titulo}
+                onChange={e => setTitulo(e.target.value)}
+                className="teatro-edit-input"
+                required
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="descricao">Descrição</label>
+              <textarea
+                id="descricao"
+                value={descricao}
+                onChange={e => setDescricao(e.target.value)}
+                rows={4}
+                className="teatro-edit-input"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="local">Local</label>
+              <input
+                id="local"
+                type="text"
+                value={local}
+                onChange={e => setLocal(e.target.value)}
+                className="teatro-edit-input"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="dataApresentacao">Data de Apresentação</label>
+              <input
+                id="dataApresentacao"
+                type="date"
+                value={dataApresentacao}
+                onChange={e => setDataApresentacao(e.target.value)}
+                className="teatro-edit-input"
+              />
+            </div>
+          </div>
+          
+          <div className="form-section">
+            <h3 className="form-section-title">Dias de Ensaio</h3>
+            <div className="day-grid">
+              {diasSemana.map(day => (
+                <button
+                  key={day}
+                  type="button"
+                  className={`day-button ${diasEnsaio.includes(day) ? 'active' : ''}`}
+                  onClick={() => handleDayToggle(day)}
+                >
+                  {day.substring(0, 3)}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="form-section">
+            <h3 className="form-section-title">Detalhes da Produção</h3>
+            
+            <div className="form-group">
+              <label htmlFor="numeroAtos">Número de Atos</label>
+              <input
+                id="numeroAtos"
+                type="number"
+                min="0"
+                value={numeroAtos}
+                onChange={e => setNumeroAtos(Number(e.target.value))}
+                className="teatro-edit-input"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="quantidadeCenas">Quantidade de Cenas</label>
+              <input
+                id="quantidadeCenas"
+                type="number"
+                min="0"
+                value={quantidadeCenas}
+                onChange={e => setQuantidadeCenas(Number(e.target.value))}
+                className="teatro-edit-input"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="temaFigurinos">Tema dos Figurinos</label>
+              <input
+                id="temaFigurinos"
+                type="text"
+                value={temaFigurinos}
+                onChange={e => setTemaFigurinos(e.target.value)}
+                className="teatro-edit-input"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="quantidadeFigurinos">Quantidade de Figurinos</label>
+              <input
+                id="quantidadeFigurinos"
+                type="number"
+                min="0"
+                value={quantidadeFigurinos}
+                onChange={e => setQuantidadeFigurinos(Number(e.target.value))}
+                className="teatro-edit-input"
+              />
+            </div>
+          </div>
+          
+          <div className="form-section aviso-section">
+            <h3 className="form-section-title">Aviso Importante</h3>
+            <p className="aviso-description">
+              Ative esta opção para destacar um aviso importante para os participantes.
+              Um ícone de alerta será exibido na página inicial.
+            </p>
+            
+            <div className="aviso-toggle">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={temAlerta}
+                  onChange={e => setTemAlerta(e.target.checked)}
+                />
+                <span className="slider"></span>
+              </label>
+              <span className="toggle-label">{temAlerta ? 'Ativo' : 'Inativo'}</span>
+            </div>
+            
+            {temAlerta && (
+              <textarea
+                id="mensagemAlerta"
+                value={mensagemAlerta}
+                onChange={e => setMensagemAlerta(e.target.value)}
+                placeholder="Digite a mensagem de aviso para os participantes"
+                rows={3}
+                className="alerta-textarea"
+              />
+            )}
+          </div>
+          
+          <button 
+            type="submit" 
+            className="teatro-save-button" 
+            disabled={saving}
+          >
+            {saving ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
+        </form>
+      </div>
+      <BottomNav currentPath="" />
+    </div>
+  );
+}
+
+// Componente de Login
+function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { login, loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      setError('Por favor, preencha todos os campos.');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError('');
+      await login(email, password);
+      navigate('/');
+    } catch (err: any) {
+      console.error('Erro de login:', err);
+      setError(err.message || 'Erro ao fazer login. Verifique suas credenciais.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      await loginWithGoogle();
+      navigate('/');
+    } catch (err: any) {
+      console.error('Erro de login com Google:', err);
+      setError(err.message || 'Erro ao fazer login com Google.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <div className="auth-container">
+      <h1 className="auth-logo">ServeFirst</h1>
+      
+      {error && <div className="error-container">{error}</div>}
+      
+      <form className="auth-form" onSubmit={handleLogin}>
+        <input
+          type="text"
+          className="auth-input"
+          placeholder="User554125"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        
+        <input
+          type="password"
+          className="auth-input"
+          placeholder="*********************"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        
+        <div className="forgot-password">
+          <Link to="/esqueci-senha">Esqueceu a senha?</Link>
+        </div>
+        
+        <button 
+          type="submit" 
+          className="auth-button"
+          disabled={loading}
+        >
+          Entrar
+        </button>
+      </form>
+      
+      <div className="auth-divider">
+        <span className="auth-divider-text">ou</span>
+      </div>
+      
+      <button 
+        className="auth-button-google"
+        onClick={handleGoogleLogin}
+        disabled={loading}
+      >
+        <span className="auth-google-icon">G</span>
+        Google
+      </button>
+      
+      <div className="auth-link">
+        Não tem uma conta ainda?
+        <Link to="/cadastro">Cadastre-se</Link>
+      </div>
+    </div>
+  );
+}
+
+// Componente de Cadastro
+function Cadastro() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { register, loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password || !confirmPassword) {
+      setError('Por favor, preencha todos os campos.');
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      setError('As senhas não correspondem.');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError('');
+      await register(email, password);
+      navigate('/');
+    } catch (err: any) {
+      console.error('Erro de cadastro:', err);
+      setError(err.message || 'Erro ao criar conta. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      await loginWithGoogle();
+      navigate('/');
+    } catch (err: any) {
+      console.error('Erro de login com Google:', err);
+      setError(err.message || 'Erro ao fazer login com Google.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <div className="auth-container">
+      <h1 className="auth-logo">ServeFirst</h1>
+      
+      {error && <div className="error-container">{error}</div>}
+      
+      <form className="auth-form" onSubmit={handleRegister}>
+        <input
+          type="email"
+          className="auth-input"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        
+        <input
+          type="password"
+          className="auth-input"
+          placeholder="Senha"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        
+        <input
+          type="password"
+          className="auth-input"
+          placeholder="Confirmar Senha"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
+        
+        <button 
+          type="submit" 
+          className="auth-button"
+          disabled={loading}
+        >
+          Entrar
+        </button>
+      </form>
+      
+      <div className="auth-divider">
+        <span className="auth-divider-text">ou utilize o google</span>
+      </div>
+      
+      <button 
+        className="auth-button-google"
+        onClick={handleGoogleLogin}
+        disabled={loading}
+      >
+        <span className="auth-google-icon">G</span>
+        Google
+      </button>
+      
+      <div className="auth-link">
+        Já possui uma conta?
+        <Link to="/login">Entrar</Link>
+      </div>
+    </div>
+  );
+}
+
+// Componente Esqueci Senha
+function EsqueciSenha() {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const { resetPassword } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email) {
+      setError('Por favor, informe seu email.');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError('');
+      await resetPassword(email);
+      setSuccess(true);
+    } catch (err: any) {
+      console.error('Erro ao redefinir senha:', err);
+      setError(err.message || 'Erro ao enviar email de redefinição. Verifique seu email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <div className="auth-container">
+      <div className="auth-header">
+        <button className="back-button" onClick={() => navigate('/login')}>
+          ←
+        </button>
+        <h1 className="auth-logo">ServeFirst</h1>
+      </div>
+      
+      <h2 className="auth-title">Recuperação de Senha</h2>
+      
+      {error && (
+        <div className="auth-error">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M12 8V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M12 16H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span>{error}</span>
+        </div>
+      )}
+      
+      {success ? (
+        <div className="auth-success">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22 11.08V12C21.9988 14.1564 21.3005 16.2547 20.0093 17.9818C18.7182 19.709 16.9033 20.9725 14.8354 21.5839C12.7674 22.1953 10.5573 22.1219 8.53447 21.3746C6.51168 20.6273 4.78465 19.2461 3.61096 17.4371C2.43727 15.628 1.87979 13.4881 2.02168 11.3363C2.16356 9.18455 2.99721 7.13631 4.39828 5.49706C5.79935 3.85781 7.69279 2.71537 9.79619 2.24013C11.8996 1.7649 14.1003 1.98232 16.07 2.85999" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M22 4L12 14.01L9 11.01" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <div className="success-message">
+            <h3>Email enviado!</h3>
+            <p>Enviamos instruções para redefinir sua senha para {email}. Verifique sua caixa de entrada e a pasta de spam.</p>
+          </div>
+          <button 
+            className="auth-button"
+            onClick={() => navigate('/login')}
+          >
+            Voltar para Login
+          </button>
+        </div>
+      ) : (
+        <form className="auth-form" onSubmit={handleResetPassword}>
+          <div className="auth-form-description">
+            Digite seu email abaixo e enviaremos instruções para redefinir sua senha.
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              className="auth-input"
+              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          
+          <button 
+            type="submit" 
+            className="auth-button"
+            disabled={loading}
+          >
+            {loading ? (
+              <div className="button-spinner"></div>
+            ) : (
+              'Enviar instruções'
+            )}
+          </button>
+          
+          <div className="auth-link">
+            Lembrou sua senha? <Link to="/login">Voltar para Login</Link>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// Componente App com roteamento
+function App() {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        <div className="spinner"></div>
+        <p>Carregando...</p>
+      </div>
+    );
+  }
+  
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/teatros" element={<Teatros />} />
+      <Route path="/teatro/:id" element={<TeatroDetalhes />} />
+      <Route path="/criar-teatro" element={user ? <CriarTeatro /> : <Navigate to="/login" />} />
+      <Route path="/editar-teatro/:id" element={user ? <EditarTeatro /> : <Navigate to="/login" />} />
+      <Route path="/buscar" element={<Buscar />} />
+      <Route path="/eventos" element={<Eventos />} />
+      <Route path="/perfil" element={user ? <Perfil /> : <Navigate to="/login" />} />
+      <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+      <Route path="/cadastro" element={!user ? <Cadastro /> : <Navigate to="/" />} />
+      <Route path="/esqueci-senha" element={!user ? <EsqueciSenha /> : <Navigate to="/" />} />
+      <Route path="/set-admin" element={user ? <SetAdmin /> : <Navigate to="/login" />} />
+    </Routes>
+  );
+}
+
+// Utility component for development to set a user as admin
+function DevSetAdmin() {
+  const { user, isAdmin } = useAuth();
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  
+  const setUserAsAdmin = async () => {
+    try {
+      setMessage('Processando...');
+      
+      // Get a reference to the Firestore database
+      const userRef = doc(db, 'users', user?.uid || '');
+      
+      // Update the user's role to 'admin'
+      await updateDoc(userRef, {
+        role: 'admin'
+      });
+      
+      setMessage('Usuário definido como administrador com sucesso! Por favor, faça logout e login novamente para aplicar as alterações.');
+    } catch (error) {
+      console.error('Erro ao definir usuário como admin:', error);
+      setMessage('Erro ao definir usuário como administrador.');
+    }
+  };
+  
+  return (
+    <div className="mobile-wrapper">
+      <div className="mobile-header">
+        <h1 className="mobile-title">Dev Tools</h1>
+      </div>
+      
+      <div className="mobile-content">
+        <div className="container">
+          <h2>Set Admin Status</h2>
+          
+          {user ? (
+            <>
+              <p>Usuário atual: {user.email}</p>
+              <p>Status de admin: {isAdmin ? 'SIM' : 'NÃO'}</p>
+              
+              <button 
+                className="button-primary"
+                onClick={setUserAsAdmin}
+              >
+                Definir como Admin
+              </button>
+              
+              {message && (
+                <div className="message-box">
+                  {message}
+                </div>
+              )}
+            </>
+          ) : (
+            <p>Você precisa estar logado para usar esta ferramenta.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Renderização do aplicativo na div root
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <Router>
+      <AuthProvider>
+        <DataServiceProvider>
+          <App />
+        </DataServiceProvider>
+      </AuthProvider>
+    </Router>
+  </React.StrictMode>
+);
