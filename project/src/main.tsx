@@ -724,7 +724,32 @@ function Home() {
             className="theater-card"
             onClick={() => navigate(`/teatro/${teatro.id}`)}
           >
-            <h3>{teatro.titulo}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 style={{ margin: 0 }}>{teatro.titulo}</h3>
+              {(teatro.temAlerta || (teatro.avisoAtivo && teatro.aviso)) && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    background: 'white',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                    marginLeft: 8,
+                  }}
+                  title="Aviso importante"
+                >
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="12" fill="white"/>
+                    <path d="M12 7v5" stroke="#fc2d2d" strokeWidth="2" strokeLinecap="round"/>
+                    <circle cx="12" cy="16" r="1.5" fill="#fc2d2d"/>
+                    <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" fill="#fc2d2d"/>
+                  </svg>
+                </span>
+              )}
+            </div>
             
             <p>
               <strong>Participantes:</strong> {teatro.participantes?.length || 0}
@@ -733,10 +758,6 @@ function Home() {
             <p>
               <strong>Dias de ensaio:</strong> {teatro.diasEnsaio?.join(', ') || 'Não definido'}
             </p>
-            
-            {(teatro.temAlerta || (teatro.avisoAtivo && teatro.aviso)) && (
-              <div className="alert-indicator"></div>
-            )}
           </div>
         ))}
       </div>
@@ -1718,7 +1739,10 @@ function CriarTeatro() {
   
   // Dados do teatro
   const [titulo, setTitulo] = useState('');
-  const [diasEnsaio, setDiasEnsaio] = useState('');
+  const diasSemana = [
+    'Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'
+  ];
+  const [diasEnsaio, setDiasEnsaio] = useState<string[]>([]);
   const [dataApresentacao, setDataApresentacao] = useState('');
   const [descricao, setDescricao] = useState('');
   const [quantidadeCenas, setQuantidadeCenas] = useState('0');
@@ -1849,8 +1873,8 @@ function CriarTeatro() {
           setError('Por favor, informe o título do grupo.');
           return;
         }
-        if (!diasEnsaio) {
-          setError('Por favor, informe os dias de ensalio.');
+        if (!diasEnsaio || diasEnsaio.length === 0) {
+          setError('Por favor, selecione pelo menos um dia de ensaio.');
           return;
         }
         if (!dataApresentacao) {
@@ -1934,7 +1958,7 @@ function CriarTeatro() {
     try {
       const novoTeatro: Omit<Teatro, 'id'> = {
         titulo,
-        diasEnsaio: diasEnsaio.split(',').map(d => d.trim()),
+        diasEnsaio: diasEnsaio,
         dataApresentacao: String(dataApresentacao),
         descricao,
         quantidadeCenas: parseInt(quantidadeCenas) || 0,
@@ -1990,22 +2014,34 @@ function CriarTeatro() {
                     }}
                   />
                 </div>
-                
+                {/* Dias de Ensaio substituído por botões */}
                 <div className="form-group">
                   <label>Dias de Ensaio:</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={diasEnsaio}
-                    onChange={(e) => setDiasEnsaio(e.target.value)}
-                    placeholder="Ex: Segunda, Quarta, Sexta"
-                    style={{
-                      padding: '12px',
-                      borderRadius: '20px',
-                      border: '1px solid #e1e1e1',
-                      backgroundColor: '#ececec'
-                    }}
-                  />
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {diasSemana.map(dia => (
+                      <button
+                        type="button"
+                        key={dia}
+                        onClick={() => setDiasEnsaio(prev =>
+                          prev.includes(dia)
+                            ? prev.filter(d => d !== dia)
+                            : [...prev, dia]
+                        )}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '20px',
+                          border: diasEnsaio.includes(dia) ? '2px solid #041e42' : '1px solid #e1e1e1',
+                          background: diasEnsaio.includes(dia) ? '#041e42' : '#ececec',
+                          color: diasEnsaio.includes(dia) ? '#fff' : '#333',
+                          fontWeight: diasEnsaio.includes(dia) ? 'bold' : 'normal',
+                          cursor: 'pointer',
+                          marginBottom: 4
+                        }}
+                      >
+                        {dia}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 
                 <div className="form-group">
@@ -2105,24 +2141,7 @@ function CriarTeatro() {
                   </div>
                 )}
                 
-                <button
-                  className="button-primary"
-                  onClick={navegarParaOrdemCenarios}
-                  disabled={loading}
-                  style={{
-                    backgroundColor: '#fc6c5f',
-                    color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '20px',
-                    border: 'none',
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    marginTop: '20px'
-                  }}
-                >
-                  Ordem Dos Cenarios
-                </button>
+          
                 
                 <button
                   className="button-primary"
@@ -3185,38 +3204,6 @@ function Perfil() {
     gruposAtivos: 0,
     participacoes: 0
   });
-  const [darkThemeEnabled, setDarkThemeEnabled] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  
-  // Load preferences from localStorage on component mount
-  useEffect(() => {
-    const loadUserPreferences = () => {
-      if (!user) return;
-      
-      // Try to load saved preferences from localStorage
-      const savedDarkTheme = localStorage.getItem(`darkTheme_${user.uid}`);
-      const savedNotifications = localStorage.getItem(`notifications_${user.uid}`);
-      
-      if (savedDarkTheme !== null) {
-        setDarkThemeEnabled(savedDarkTheme === 'true');
-      }
-      
-      if (savedNotifications !== null) {
-        setNotificationsEnabled(savedNotifications === 'true');
-      }
-    };
-    
-    loadUserPreferences();
-  }, [user]);
-  
-  // Apply dark theme to body element
-  useEffect(() => {
-    if (darkThemeEnabled) {
-      document.body.classList.add('dark-theme');
-    } else {
-      document.body.classList.remove('dark-theme');
-    }
-  }, [darkThemeEnabled]);
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -3249,24 +3236,6 @@ function Perfil() {
     
     fetchUserData();
   }, [user, dataService]);
-  
-  const toggleDarkTheme = () => {
-    const newValue = !darkThemeEnabled;
-    setDarkThemeEnabled(newValue);
-    
-    if (user) {
-      localStorage.setItem(`darkTheme_${user.uid}`, String(newValue));
-    }
-  };
-  
-  const toggleNotifications = () => {
-    const newValue = !notificationsEnabled;
-    setNotificationsEnabled(newValue);
-    
-    if (user) {
-      localStorage.setItem(`notifications_${user.uid}`, String(newValue));
-    }
-  };
   
   const handleLogout = async () => {
     try {
@@ -3387,113 +3356,6 @@ function Perfil() {
                   style={{ color: '#041e42', fontSize: '14px', cursor: 'pointer' }}
                 >
                   Alterar
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Preferências */}
-          <div style={{ marginBottom: '25px' }}>
-            <h3 style={{ 
-              fontSize: '16px', 
-              color: '#333', 
-              marginBottom: '15px',
-              fontWeight: 'bold',
-              paddingBottom: '8px',
-              borderBottom: '1px solid #eee'
-            }}>
-              Preferências
-            </h3>
-            
-            <div style={{
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              overflow: 'hidden',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-            }}>
-              <div style={{ 
-                padding: '15px',
-                borderBottom: '1px solid #f0f0f0',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <div style={{ fontSize: '16px' }}>Notificações</div>
-                </div>
-                <div 
-                  onClick={toggleNotifications}
-                  style={{ 
-                    width: '40px',
-                    height: '20px',
-                    backgroundColor: notificationsEnabled ? '#4caf50' : '#ccc',
-                    borderRadius: '20px',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.3s'
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    right: notificationsEnabled ? '2px' : 'auto',
-                    left: notificationsEnabled ? 'auto' : '2px',
-                    top: '2px',
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: 'white',
-                    transition: 'left 0.3s, right 0.3s'
-                  }}></div>
-                </div>
-              </div>
-              
-              <div style={{ 
-                padding: '15px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                borderBottom: '1px solid #f0f0f0',
-              }}>
-                <div>
-                  <div style={{ fontSize: '16px' }}>Tema Escuro</div>
-                </div>
-                <div 
-                  onClick={toggleDarkTheme}
-                  style={{ 
-                    width: '40px',
-                    height: '20px',
-                    backgroundColor: darkThemeEnabled ? '#4caf50' : '#ccc',
-                    borderRadius: '20px',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.3s'
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    right: darkThemeEnabled ? '2px' : 'auto',
-                    left: darkThemeEnabled ? 'auto' : '2px',
-                    top: '2px',
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: 'white',
-                    transition: 'left 0.3s, right 0.3s'
-                  }}></div>
-                </div>
-              </div>
-              
-              <div style={{ 
-                padding: '15px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <div style={{ fontSize: '16px' }}>Idioma</div>
-                </div>
-                <div style={{ color: '#666', fontSize: '14px' }}>
-                  Português
                 </div>
               </div>
             </div>
