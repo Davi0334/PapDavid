@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
 import { MobileWrapper } from '@/components/mobile-wrapper';
@@ -59,6 +59,9 @@ export function EditarTeatro() {
     aviso: '',
     avisoAtivo: false
   });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
+  const [participantes, setParticipantes] = useState<{ id: string, nome: string, email?: string }[]>([]);
 
   const weekdays = [
     { key: 'seg', label: 'Seg' },
@@ -119,6 +122,41 @@ export function EditarTeatro() {
     
     fetchTeatro();
   }, [id, user]);
+
+  // Buscar participantes (atores) ao carregar o teatro
+  useEffect(() => {
+    const fetchParticipantes = async () => {
+      if (!id) return;
+      try {
+        const docRef = doc(db, 'teatros', id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const teatroData = docSnap.data();
+          if (Array.isArray(teatroData.participantes) && teatroData.participantes.length > 0) {
+            // Buscar nomes dos participantes na coleção 'usuarios'
+            const usersCol = collection(db, 'usuarios');
+            const participantesData = await Promise.all(
+              teatroData.participantes.map(async (uid: string) => {
+                const userDoc = await getDoc(doc(usersCol, uid));
+                if (userDoc.exists()) {
+                  const data = userDoc.data();
+                  return { id: uid, nome: data.nome || data.displayName || 'Sem nome', email: data.email };
+                } else {
+                  return { id: uid, nome: 'Usuário não encontrado' };
+                }
+              })
+            );
+            setParticipantes(participantesData);
+          } else {
+            setParticipantes([]);
+          }
+        }
+      } catch (e) {
+        setParticipantes([]);
+      }
+    };
+    fetchParticipantes();
+  }, [id]);
 
   // Lidar com alterações no formulário
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -188,6 +226,15 @@ export function EditarTeatro() {
     setTimeout(() => setSuccess(null), 2000);
   };
 
+  const handleImportFigurino = (text: string) => {
+    setFormState(prev => ({
+      ...prev,
+      temaFigurinos: text
+    }));
+    setSuccess('Tema dos figurinos importado com sucesso!');
+    setTimeout(() => setSuccess(null), 2000);
+  };
+
   // Custom DocumentImporter wrappers that match the expected props
   const RoteiroDImporter = () => {
     return (
@@ -199,6 +246,10 @@ export function EditarTeatro() {
     return (
       <DocumentImporterWrapper onContentReceived={handleImportCenario} />
     );
+  };
+
+  const FigurinoImporter = () => {
+    return <DocumentImporterWrapper onContentReceived={handleImportFigurino} />;
   };
 
   // Salvar atualizações
@@ -277,6 +328,55 @@ export function EditarTeatro() {
     }
   };
 
+  // Função para deletar teatro
+  const handleDelete = async () => {
+    if (!id || !user) return;
+    setDeleteInProgress(true);
+    try {
+      if (id.startsWith('local_')) {
+        localStorage.removeItem(`teatro_local_${id}`);
+        try {
+          const teatrosCache = localStorage.getItem('teatros_cache');
+          if (teatrosCache) {
+            const teatros = JSON.parse(teatrosCache);
+            const teatrosAtualizados = teatros.filter((t: any) => t.id !== id);
+            localStorage.setItem('teatros_cache', JSON.stringify(teatrosAtualizados));
+          }
+        } catch (e) {
+          console.error('Erro ao atualizar cache de teatros:', e);
+        }
+        navigate('/teatros');
+        return;
+      }
+      const teatroRef = doc(db, 'teatros', id);
+      await deleteDoc(teatroRef);
+      localStorage.removeItem(`teatro_cache_${id}`);
+      try {
+        const teatrosCache = localStorage.getItem('teatros_cache');
+        if (teatrosCache) {
+          const teatros = JSON.parse(teatrosCache);
+          const teatrosAtualizados = teatros.filter((t: any) => t.id !== id);
+          localStorage.setItem('teatros_cache', JSON.stringify(teatrosAtualizados));
+        }
+      } catch (e) {
+        console.error('Erro ao atualizar cache de teatros:', e);
+      }
+      navigate('/teatros');
+    } catch (error) {
+      console.error('Erro ao excluir teatro:', error);
+      if (!id.startsWith('local_')) {
+        localStorage.setItem(`teatro_delete_${id}`, JSON.stringify({
+          id,
+          timestamp: new Date().toISOString(),
+          userId: user.uid
+        }));
+      }
+    } finally {
+      setDeleteInProgress(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   // Voltar para a página anterior
   const handleBack = () => {
     if (window.history.length > 2) {
@@ -285,6 +385,29 @@ export function EditarTeatro() {
     } else {
       // Fallback to theater details if no history available
       navigate(`/teatro/${id}`);
+    }
+  };
+
+  // Função para remover participante
+  const handleRemoveParticipante = async (uid: string) => {
+    if (!id) return;
+    try {
+      setSaving(true);
+      // Atualizar no Firestore
+      const docRef = doc(db, 'teatros', id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const teatroData = docSnap.data();
+        const novaLista = (teatroData.participantes || []).filter((pid: string) => pid !== uid);
+        await updateDoc(docRef, { participantes: novaLista });
+        setParticipantes(prev => prev.filter(p => p.id !== uid));
+        setSuccess('Ator removido com sucesso!');
+        setTimeout(() => setSuccess(null), 2000);
+      }
+    } catch (e) {
+      setError('Erro ao remover ator.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -482,26 +605,26 @@ export function EditarTeatro() {
       case 'figurino':
         return (
           <div>
-            <div style={{ marginBottom: '15px' }}>
+            <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Tema dos Figurinos</label>
-              <input
-                type="text"
-                name="temaFigurinos"
-                value={formState.temaFigurinos}
-                onChange={handleChange}
-                style={{ 
-                  width: '100%', 
-                  padding: '8px', 
-                  boxSizing: 'border-box',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px'
-                }}
-                placeholder="Ex: Medieval, Futurista, Casual..."
-                autoComplete="off"
-              />
+              <FigurinoImporter />
             </div>
-
-            <div style={{ marginBottom: '15px' }}>
+            <input
+              type="text"
+              name="temaFigurinos"
+              value={formState.temaFigurinos}
+              onChange={handleChange}
+              style={{ 
+                width: '100%', 
+                padding: '8px', 
+                boxSizing: 'border-box',
+                border: '1px solid #ccc',
+                borderRadius: '4px'
+              }}
+              placeholder="Ex: Medieval, Futurista, Casual..."
+              autoComplete="off"
+            />
+            <div style={{ marginBottom: '15px', marginTop: '15px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Quantidade de Figurinos</label>
               <input
                 type="number"
@@ -524,59 +647,6 @@ export function EditarTeatro() {
       case 'equipe':
         return (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Número de Atos</label>
-                <input
-                  type="number"
-                  name="numeroAtos"
-                  value={formState.numeroAtos}
-                  onChange={handleNumberChange}
-                  min="0"
-                  style={{ 
-                    width: '100%', 
-                    padding: '8px', 
-                    boxSizing: 'border-box',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px'
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Cenas</label>
-                <input
-                  type="number"
-                  name="quantidadeCenas"
-                  value={formState.quantidadeCenas}
-                  onChange={handleNumberChange}
-                  min="0"
-                  style={{ 
-                    width: '100%', 
-                    padding: '8px', 
-                    boxSizing: 'border-box',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px'
-                  }}
-                />
-              </div>
-            </div>
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Quantidade de Atores</label>
-              <input
-                type="number"
-                name="quantidadeAtores"
-                value={formState.quantidadeAtores}
-                onChange={handleNumberChange}
-                min="0"
-                style={{ 
-                  width: '100%', 
-                  padding: '8px', 
-                  boxSizing: 'border-box',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px'
-                }}
-              />
-            </div>
             {/* Toggle de aviso */}
             <div style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
@@ -605,6 +675,43 @@ export function EditarTeatro() {
                 placeholder="Digite aqui o aviso importante..."
                 disabled={!formState.avisoAtivo}
               />
+            </div>
+
+            {/* Aviso ativo (preview) */}
+            {formState.avisoAtivo && formState.aviso && (
+              <div style={{ backgroundColor: '#fff3cd', border: '1px solid #ffeeba', padding: '15px', marginBottom: '15px', borderRadius: '8px' }}>
+                <h3 style={{ color: '#856404', marginBottom: '5px', fontWeight: 'bold' }}>
+                  <span style={{ marginRight: '8px' }}>⚠️</span>
+                  Preview do Aviso
+                </h3>
+                <p style={{ wordBreak: 'break-word' }}>{formState.aviso}</p>
+              </div>
+            )}
+
+            {/* Lista de atores */}
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ fontWeight: 'bold', marginBottom: '8px', display: 'block' }}>Atores do Teatro</label>
+              {participantes.length === 0 ? (
+                <p style={{ color: '#888' }}>Nenhum ator cadastrado.</p>
+              ) : (
+                <ul style={{ listStyle: 'none', padding: 0 }}>
+                  {participantes.map((p) => (
+                    <li key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #eee' }}>
+                      <span>{p.nome}{p.email ? ` (${p.email})` : ''}</span>
+                      {user && p.id !== user.uid && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveParticipante(p.id)}
+                          style={{ background: 'none', color: '#cc0000', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                          disabled={saving}
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         );
@@ -727,13 +834,13 @@ export function EditarTeatro() {
         
         <div style={{ 
           padding: '12px', 
-          paddingBottom: '70px', 
+          paddingBottom: '120px', // espaço extra para dois botões
           backgroundColor: 'white'
         }}>
           {renderTabContent()}
         </div>
         
-        {/* Botão fixo na parte inferior - estilo mobile */}
+        {/* Botões fixos na parte inferior */}
         <div style={{ 
           position: 'fixed', 
           bottom: 0, 
@@ -742,7 +849,10 @@ export function EditarTeatro() {
           padding: '10px', 
           backgroundColor: 'white', 
           borderTop: '1px solid #ddd', 
-          zIndex: 10
+          zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
         }}>
           <button
             type="submit"
@@ -760,8 +870,86 @@ export function EditarTeatro() {
           >
             {saving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            style={{ 
+              width: '100%', 
+              padding: '12px', 
+              backgroundColor: '#ff3b30', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px',
+              fontWeight: 'bold', 
+              cursor: deleteInProgress ? 'not-allowed' : 'pointer',
+              opacity: deleteInProgress ? 0.7 : 1
+            }}
+            disabled={deleteInProgress}
+          >
+            {deleteInProgress ? 'Excluindo...' : 'Deletar Teatro'}
+          </button>
         </div>
       </form>
+      {/* Modal de confirmação de exclusão */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            maxWidth: '90vw',
+            textAlign: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+          }}>
+            <h2 style={{ color: '#ff3b30', marginBottom: '16px' }}>Confirmar Exclusão</h2>
+            <p>Tem certeza que deseja <b>deletar este teatro</b>? Esta ação não pode ser desfeita.</p>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#ccc',
+                  color: '#333',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+                disabled={deleteInProgress}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                style={{
+                  padding: '10px 20px',
+                  background: '#ff3b30',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontWeight: 'bold',
+                  cursor: deleteInProgress ? 'not-allowed' : 'pointer',
+                  opacity: deleteInProgress ? 0.7 : 1
+                }}
+                disabled={deleteInProgress}
+              >
+                {deleteInProgress ? 'Excluindo...' : 'Deletar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </MobileWrapper>
   );
 } 

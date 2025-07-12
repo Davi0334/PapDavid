@@ -6,41 +6,33 @@ import { Teatro } from '../types/teatro';
 import BottomNav from '../components/bottom-nav';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase-prod';
+import { Home as HomeIcon, Users, Calendar, Plus, Star, Sparkles, Clock } from 'lucide-react';
 
 export default function Home() {
   const navigate = useNavigate();
   const [teatros, setTeatros] = useState<Teatro[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [adminStatus, setAdminStatus] = useState(false); // Estado local para admin
-  const [forceAdmin, setForceAdmin] = useState(false); // Para forçar status admin quando necessário
-  const [forceShowButton, setForceShowButton] = useState(true); // Para forçar a exibição do botão durante testes
+  const [adminStatus, setAdminStatus] = useState(false);
+  const [userName, setUserName] = useState('');
   const dataService = useDataService();
   const { user, isAdmin, userRole, refreshAdminStatus } = useAuth();
   
-  // Verificar status admin em um useEffect separado para garantir que rode a cada renderização
   useEffect(() => {
     const checkAdminDirectly = async () => {
       if (!user) return;
       
       try {
-        console.log('Verificando admin diretamente (useEffect separado)');
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
           const userIsAdmin = userData.role === 'admin';
-          console.log('Verificação direta de admin:', userIsAdmin, userData);
-          
-          // Atualizar ambos os estados para garantir que o botão apareça
           setAdminStatus(userIsAdmin);
-          setForceAdmin(userIsAdmin);
+          setUserName(userData.displayName || userData.name || user.displayName || user.email?.split('@')[0] || 'Usuário');
           
-          // Se for admin pelo Firestore mas não pelo contexto, tentar atualizar o contexto
           if (userIsAdmin && !isAdmin) {
-            console.log('Detectado admin no Firestore mas não no contexto, tentando refresh...');
             try {
-              const refreshed = await refreshAdminStatus();
-              console.log('Resultado do refresh admin:', refreshed);
+              await refreshAdminStatus();
             } catch (refreshError) {
               console.error('Erro no refresh do admin:', refreshError);
             }
@@ -52,22 +44,13 @@ export default function Home() {
     };
     
     checkAdminDirectly();
-  }, [user, isAdmin, refreshAdminStatus]); // Adicionando isAdmin e refreshAdminStatus como dependências
+  }, [user, isAdmin, refreshAdminStatus]);
   
   useEffect(() => {
-    console.log('User info:', user?.email, user?.uid);
-    console.log('isAdmin status from auth:', isAdmin);
-    console.log('userRole from auth:', userRole);
-    console.log('adminStatus state:', adminStatus);
-    console.log('forceAdmin state:', forceAdmin);
-    console.log('Valor da condição de renderização do botão:', (isAdmin || adminStatus || forceAdmin));
-    
     const fetchTeatros = async () => {
       try {
         setLoading(true);
         const data = await dataService.getTeatros();
-        console.log('Teatros carregados:', data);
-        // Convert to the expected format
         const convertedData = data.map((teatro: any) => ({
           id: teatro.id,
           nome: teatro.titulo || teatro.nome,
@@ -89,47 +72,74 @@ export default function Home() {
     };
     
     fetchTeatros();
-  }, [dataService, isAdmin, user, userRole]);
-  
-  // Adicionar este useEffect para forçar mostrar o botão durante desenvolvimento
-  useEffect(() => {
-    // Se o console indica que é admin, vamos garantir que o botão apareça
-    console.log("FORÇANDO EXIBIÇÃO DO BOTÃO");
-    const userDocRef = user?.uid ? doc(db, 'users', user.uid) : null;
-    
-    if (userDocRef) {
-      getDoc(userDocRef).then(snapshot => {
-        if (snapshot.exists()) {
-          const userData = snapshot.data();
-          if (userData.role === 'admin') {
-            console.log("ADMIN DETECTADO, FORÇANDO BOTÃO");
-            setForceAdmin(true);
-            setForceShowButton(true);
-          }
-        }
-      }).catch(err => {
-        console.error("Erro ao verificar admin:", err);
-        // Se houver erro, mostra o botão de qualquer forma para teste
-        setForceShowButton(true);
-      });
-    }
-  }, [user]);
-  
+  }, [dataService, user]);
+
+  const getTimeOfDayGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bom dia';
+    if (hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  };
+
   const renderTeatros = () => {
     if (loading) {
       return (
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Carregando seus teatros...</p>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '60px 20px',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '60px',
+            height: '60px',
+            border: '4px solid rgba(252, 108, 95, 0.3)',
+            borderTop: '4px solid #fc6c5f',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            marginBottom: '20px'
+          }} />
+          <p style={{
+            color: '#666',
+            fontSize: '16px',
+            fontWeight: '500'
+          }}>Carregando seus teatros...</p>
         </div>
       );
     }
     
     if (error) {
       return (
-        <div className="error-container">
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()} className="button">
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.9))',
+          borderRadius: '16px',
+          padding: '30px',
+          textAlign: 'center',
+          border: '1px solid rgba(252, 108, 95, 0.2)',
+          margin: '20px 0'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '15px' }}>⚠️</div>
+          <p style={{ color: '#666', marginBottom: '20px', fontSize: '16px' }}>{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{
+              background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 15px rgba(252, 108, 95, 0.3)'
+            }}
+            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
             Tentar novamente
           </button>
         </div>
@@ -138,14 +148,93 @@ export default function Home() {
     
     if (teatros.length === 0) {
       return (
-        <div className="empty-state">
-          <p>Você ainda não participa de nenhum teatro.</p>
-          {isAdmin && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.05), rgba(255, 255, 255, 0.95))',
+          backdropFilter: 'blur(20px)',
+          borderRadius: '20px',
+          padding: '40px 30px',
+          textAlign: 'center',
+          border: '1px solid rgba(252, 108, 95, 0.1)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          margin: '20px 0',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          {/* Elementos decorativos */}
+          <div style={{
+            position: 'absolute',
+            top: '-20px',
+            right: '-20px',
+            width: '80px',
+            height: '80px',
+            background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.1))',
+            borderRadius: '50%',
+            animation: 'float 3s ease-in-out infinite'
+          }} />
+          <div style={{
+            position: 'absolute',
+            bottom: '-10px',
+            left: '-10px',
+            width: '60px',
+            height: '60px',
+            background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.05), rgba(255, 255, 255, 0.05))',
+            borderRadius: '50%',
+            animation: 'float 4s ease-in-out infinite reverse'
+          }} />
+          
+          <div style={{
+            background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+            borderRadius: '50%',
+            width: '80px',
+            height: '80px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 20px',
+            animation: 'pulse 2s ease-in-out infinite'
+          }}>
+            <Sparkles size={40} color="white" />
+          </div>
+          
+          <h3 style={{
+            color: '#333',
+            fontSize: '20px',
+            fontWeight: '700',
+            marginBottom: '10px'
+          }}>Bem-vindo ao ServeFirst!</h3>
+          
+          <p style={{
+            color: '#666',
+            fontSize: '16px',
+            marginBottom: '25px',
+            lineHeight: '1.5'
+          }}>Você ainda não participa de nenhum teatro. Que tal começar sua jornada artística?</p>
+          
+          {(isAdmin || adminStatus) && (
             <button 
-              onClick={() => navigate('/criar-teatro')} 
-              className="button"
+              onClick={() => navigate('/criar-teatro')}
+              style={{
+                background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '16px',
+                padding: '16px 32px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 6px 20px rgba(252, 108, 95, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                margin: '0 auto'
+              }}
+              onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+              onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
-              Criar Novo Teatro
+              <Plus size={20} />
+              Criar Primeiro Teatro
             </button>
           )}
         </div>
@@ -153,26 +242,118 @@ export default function Home() {
     }
     
     return (
-      <div className="theaters-list">
-        {teatros.map(teatro => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {teatros.map((teatro, index) => (
           <div 
             key={teatro.id} 
-            className="theater-card"
             onClick={() => navigate(`/teatro/${teatro.id}`)}
+            style={{
+              background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.9))',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '20px',
+              padding: '24px',
+              border: '1px solid rgba(252, 108, 95, 0.2)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              overflow: 'hidden',
+              animation: `slideIn 0.6s ease-out ${index * 0.1}s both`
+            }}
+            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            <h3>{teatro.nome}</h3>
+            {/* Elemento decorativo */}
+            <div style={{
+              position: 'absolute',
+              top: '-10px',
+              right: '-10px',
+              width: '40px',
+              height: '40px',
+              background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.2), rgba(255, 255, 255, 0.2))',
+              borderRadius: '50%',
+              animation: 'float 3s ease-in-out infinite'
+            }} />
             
-            <p>
-              <strong>Participantes:</strong> {teatro.qtdParticipantes || 0}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{
+                color: '#333',
+                fontSize: '20px',
+                fontWeight: '700',
+                margin: 0,
+                flex: 1
+              }}>{teatro.nome}</h3>
+              
+              {teatro.status === 'ativo' && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #4ade80, #22c55e)',
+                  borderRadius: '50%',
+                  width: '12px',
+                  height: '12px',
+                  animation: 'pulse 2s ease-in-out infinite',
+                  marginTop: '4px'
+                }} />
+              )}
+            </div>
             
-            <p>
-              <strong>Dias de ensaio:</strong> {teatro.diasEnsaio || 'Não definido'}
-            </p>
-            
-            {teatro.status === 'ativo' && (
-              <div className="active-indicator"></div>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+                  borderRadius: '8px',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Users size={16} color="white" />
+                </div>
+                <div>
+                  <p style={{ 
+                    color: '#666', 
+                    fontSize: '14px', 
+                    margin: 0, 
+                    fontWeight: '500' 
+                  }}>Participantes</p>
+                  <p style={{ 
+                    color: '#333', 
+                    fontSize: '16px', 
+                    margin: 0, 
+                    fontWeight: '700' 
+                  }}>{teatro.qtdParticipantes || 0}</p>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
+                  borderRadius: '8px',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Calendar size={16} color="white" />
+                </div>
+                <div>
+                  <p style={{ 
+                    color: '#666', 
+                    fontSize: '14px', 
+                    margin: 0, 
+                    fontWeight: '500' 
+                  }}>Dias de ensaio</p>
+                  <p style={{ 
+                    color: '#333', 
+                    fontSize: '14px', 
+                    margin: 0, 
+                    fontWeight: '600' 
+                  }}>{teatro.diasEnsaio || 'Não definido'}</p>
+                </div>
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -180,138 +361,224 @@ export default function Home() {
   };
   
   return (
-    <div className="mobile-wrapper">
-      <div className="mobile-header">
-        <h1 className="mobile-title">ServeFirst</h1>
-      </div>
-      
-      <div className="mobile-content">
-        <div className="container">
-          <h2>Meus Teatros</h2>
-          {renderTeatros()}
-          
-          {/* Debug Info */}
-          <div style={{ marginTop: '30px', padding: '10px', border: '1px dashed #ccc', fontSize: '12px' }}>
-            <p>Debug: isAdmin={String(isAdmin)}, adminStatus={String(adminStatus)}, forceAdmin={String(forceAdmin)}, forceShowButton={String(forceShowButton)}</p>
-            <p>userRole={userRole || 'não definido'}</p>
-            <p>Condição botão: {String(isAdmin || adminStatus || forceAdmin || forceShowButton)}</p>
-            <button 
-              onClick={async () => {
-                if (!user) return;
-                try {
-                  // Primeiro tentar a função do AuthContext
-                  const refreshed = await refreshAdminStatus();
-                  console.log('Admin status refreshed:', refreshed);
-                  
-                  // Também verificar direto no Firestore
-                  const userDoc = await getDoc(doc(db, 'users', user.uid));
-                  if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    const isUserAdmin = userData.role === 'admin';
-                    setForceAdmin(isUserAdmin);
-                    setForceShowButton(true); // Forçar exibição do botão após verificação
-                    alert(`Admin status verificado: ${isUserAdmin ? 'É admin' : 'Não é admin'} (Refresh: ${refreshed ? 'Sucesso' : 'Falha'})`);
-                  }
-                } catch (err) {
-                  console.error(err);
-                  alert('Erro ao verificar status: ' + String(err));
-                  // Se houver erro, mostra o botão para teste
-                  setForceShowButton(true);
-                }
-              }}
-              style={{
-                padding: '5px 10px',
-                backgroundColor: '#333',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '12px'
-              }}
-            >
-              Verificar Admin Agora
-            </button>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #fc6c5f 0%, #ff8a7a 25%, #ffb8a3 50%, #ffffff 75%, #f8f9fa 100%)',
+      backgroundSize: '400% 400%',
+      animation: 'gradientFlow 15s ease infinite',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Elementos decorativos de fundo */}
+      <div style={{
+        position: 'absolute',
+        top: '10%',
+        left: '10%',
+        width: '100px',
+        height: '100px',
+        background: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: '50%',
+        animation: 'float 6s ease-in-out infinite'
+      }} />
+      <div style={{
+        position: 'absolute',
+        top: '20%',
+        right: '15%',
+        width: '60px',
+        height: '60px',
+        background: 'rgba(255, 255, 255, 0.15)',
+        borderRadius: '50%',
+        animation: 'float 8s ease-in-out infinite reverse'
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: '30%',
+        left: '5%',
+        width: '80px',
+        height: '80px',
+        background: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: '50%',
+        animation: 'float 7s ease-in-out infinite'
+      }} />
 
-            <button 
-              onClick={() => {
-                setForceShowButton(!forceShowButton);
-                alert(`Botão ${forceShowButton ? 'escondido' : 'mostrado'} manualmente`);
-              }}
-              style={{
-                padding: '5px 10px',
-                backgroundColor: '#333',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '12px',
-                marginLeft: '5px'
-              }}
-            >
-              {forceShowButton ? 'Esconder' : 'Mostrar'} Botão
-            </button>
+      {/* Header */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+        padding: '20px 20px 24px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '16px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7))',
+            borderRadius: '16px',
+            padding: '12px',
+            marginRight: '12px',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
+          }}>
+            <HomeIcon size={24} style={{ color: '#fc6c5f' }} />
           </div>
+          <h1 style={{
+            color: 'white',
+            fontSize: '28px',
+            fontWeight: '800',
+            margin: 0,
+            textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
+            background: 'linear-gradient(135deg, #ffffff, #f8f9fa)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>ServeFirst</h1>
+        </div>
+        
+        <div style={{ textAlign: 'center' }}>
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.9)',
+            fontSize: '16px',
+            fontWeight: '600',
+            margin: 0,
+            textShadow: '0 1px 5px rgba(0, 0, 0, 0.2)'
+          }}>
+            {getTimeOfDayGreeting()}, {userName}! ✨
+          </p>
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.8)',
+            fontSize: '14px',
+            fontWeight: '500',
+            margin: '4px 0 0',
+            textShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
+          }}>
+            Pronto para brilhar no palco?
+          </p>
         </div>
       </div>
       
-      {/* Usar várias condições para garantir que o botão apareça quando qualquer um 
-          dos métodos detectar que o usuário é admin */}
-      {(isAdmin || adminStatus || forceAdmin || forceShowButton) && (
+      {/* Conteúdo */}
+      <div style={{
+        maxWidth: '430px',
+        margin: '0 auto',
+        padding: '24px 20px 100px',
+        position: 'relative',
+        zIndex: 5
+      }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: '24px',
+          padding: '24px',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          {/* Elemento decorativo interno */}
+          <div style={{
+            position: 'absolute',
+            top: '-20px',
+            right: '-20px',
+            width: '100px',
+            height: '100px',
+            background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.1))',
+            borderRadius: '50%',
+            animation: 'float 5s ease-in-out infinite'
+          }} />
+          
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+              borderRadius: '12px',
+              padding: '8px',
+              marginRight: '12px'
+            }}>
+              <Star size={20} color="white" />
+            </div>
+            <h2 style={{
+              color: '#333',
+              fontSize: '22px',
+              fontWeight: '700',
+              margin: 0
+            }}>Meus Teatros</h2>
+          </div>
+          
+          {renderTeatros()}
+        </div>
+      </div>
+      
+      {/* Botão flutuante para admins */}
+      {(isAdmin || adminStatus) && (
         <button 
-          className="floating-button"
           onClick={() => navigate('/criar-teatro')}
-          aria-label="Criar novo teatro"
           style={{
             position: 'fixed',
-            bottom: '80px',
-            right: '20px',
-            width: '70px',  // Aumentar tamanho para mobile
-            height: '70px', // Aumentar tamanho para mobile
+            bottom: '90px',
+            right: '25px',
+            width: '70px',
+            height: '70px',
             borderRadius: '50%',
-            backgroundColor: '#fc6c5f',
+            background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
             color: 'white',
-            fontSize: '36px', // Fonte maior para maior visibilidade em mobile
+            fontSize: '32px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             border: 'none',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)', // Sombra mais escura para destacar
+            boxShadow: '0 8px 25px rgba(252, 108, 95, 0.4)',
             cursor: 'pointer',
-            zIndex: 9999, // Z-index muito alto para garantir que fique sobre tudo
-            transform: 'scale(1.1)', // Deixar um pouco maior
-            transition: '0.3s all'
+            zIndex: 1000,
+            transition: 'all 0.3s ease',
+            animation: 'pulse 3s ease-in-out infinite'
           }}
+          onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.9)'}
+          onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
-          +
+          <Plus size={28} />
         </button>
       )}
       
-      {/* Botão de teste que sempre aparece para verificar se o problema é de estilo */}
-      <button 
-        className="floating-button-test"
-        onClick={() => console.log('Botão de teste clicado')}
-        aria-label="Botão de teste"
-        style={{
-          position: 'fixed',
-          bottom: '150px',
-          right: '20px',
-          width: '60px',
-          height: '60px',
-          borderRadius: '50%',
-          backgroundColor: 'green',
-          color: 'white',
-          fontSize: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: 'none',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-          cursor: 'pointer',
-          zIndex: 1000
-        }}
-      >
-        TEST
-      </button>
-      
       <BottomNav />
+      
+      {/* Estilos CSS para animações */}
+      <style>{`
+        @keyframes gradientFlow {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

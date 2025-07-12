@@ -366,138 +366,64 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onError })
   };
 
   const loginWithGoogle = async (callback?: () => void) => {
-    // Create a provider instance with specific configuration outside the try block
     const provider = new GoogleAuthProvider();
     
-    // Add scopes - these are required for proper authentication
+    // Add scopes
     provider.addScope('profile');
     provider.addScope('email');
     
-    // Set custom parameters to force account selection
-    provider.setCustomParameters({
-      prompt: 'select_account',
-      // These parameters help with COOP issues
-      access_type: 'offline',
-      include_granted_scopes: 'true'
-    });
-    
     try {
       setLoading(true);
+      console.log("Iniciando login com Google via popup...");
+      console.log("Domínio atual:", window.location.hostname);
       
-      console.log("Iniciando login com Google...");
-      console.log("Ambiente de rede:", isNetworkEnvironment() ? "Sim" : "Não");
-      
-      // In network environments, prefer redirect method first
-      if (isNetworkEnvironment()) {
-        console.log("Usando método de redirecionamento prioritário para ambientes de rede");
+      try {
+        // Primeira tentativa: usar popup
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        console.log("Login com Google bem-sucedido via popup:", user.email);
+        await processGoogleUser(user);
+      } catch (popupError: any) {
+        console.log("Popup falhou, detalhes do erro:", popupError);
+        console.log("Código do erro:", popupError.code);
+        console.log("Mensagem do erro:", popupError.message);
         
-        // First, check if we have a pending redirect result
-        try {
-          const redirectResult = await getRedirectResult(auth);
-          if (redirectResult && redirectResult.user) {
-            // We have a redirect result, process the user
-            console.log("Login com redirect bem-sucedido:", redirectResult.user.email);
-            await processGoogleUser(redirectResult.user);
-            if (callback) {
-              callback();
-            }
-            return;
-          }
+        // Se o popup falhar, tentar redirecionamento
+        if (popupError.code === 'auth/popup-blocked' || 
+            popupError.code === 'auth/cancelled-popup-request' ||
+            popupError.code === 'auth/popup-closed-by-user' ||
+            popupError.code === 'auth/unauthorized-domain') {
           
-          // If we don't have a redirect result, start the redirect flow
-          console.log("Iniciando fluxo de redirecionamento para autenticação Google");
+          console.log("Tentando login com redirecionamento...");
+          // Tentar login com redirecionamento
           await signInWithRedirect(auth, provider);
-          // Page will redirect, code won't continue
-          return;
+          toast.info('Redirecionando para login do Google...');
           
-        } catch (redirectError) {
-          console.error("Erro ao processar redirect:", redirectError);
-          // Fall back to popup method
-          console.log("Fallback para método popup após erro no redirect");
-        }
-      } else {
-        // For localhost, check for redirect result first (in case of redirect from previous attempts)
-        try {
-          const redirectResult = await getRedirectResult(auth);
-          if (redirectResult && redirectResult.user) {
-            // We have a redirect result, process the user
-            console.log("Login com redirect bem-sucedido:", redirectResult.user.email);
-            await processGoogleUser(redirectResult.user);
-            if (callback) {
-              callback();
-            }
-            return;
-          }
-        } catch (redirectError) {
-          console.error("Erro ao processar redirect:", redirectError);
-          // Continue with popup attempt
+          // O resultado será processado no useEffect que monitora auth state
+          return;
+        } else {
+          throw popupError;
         }
       }
       
-      // Attempt popup authentication
-      try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        console.log("Login com popup bem-sucedido:", user.email);
-        
-        // Verify user exists in Firestore
-        await processGoogleUser(user);
-        if (callback) {
-          callback();
-        }
-        return;
-      } catch (popupError: any) {
-        console.error('Erro no popup login:', popupError);
-        
-        // If error is related to popup, try redirect method
-        if (popupError.code === 'auth/cancelled-popup-request' || 
-            popupError.code === 'auth/popup-closed-by-user' ||
-            popupError.code === 'auth/popup-blocked' ||
-            popupError.message?.includes('opener')) {
-            
-          console.log("Erro no popup detectado, tentando redirecionamento...");
-          try {
-            // Fallback to redirect method which works better in some environments
-            await signInWithRedirect(auth, provider);
-            // The page will redirect, so this code won't continue executing
-            return;
-          } catch (redirectError) {
-            console.error("Erro no redirect:", redirectError);
-            handleAuthError(redirectError);
-            throw redirectError;
-          }
-        }
-        
-        // For other errors, pass to general handler
-        handleAuthError(popupError);
-        throw popupError;
+      if (callback) {
+        callback();
       }
     } catch (error: any) {
       console.error('Erro ao fazer login com Google:', error);
+      console.error('Código do erro:', error.code);
+      console.error('Mensagem do erro:', error.message);
       
-      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-        // User canceled the login process - don't show an error
-        console.log('Login cancelado pelo usuário');
-      } else if (error.code === 'auth/popup-blocked') {
-        toast.error('O popup de login foi bloqueado. Tentando método alternativo...');
-        try {
-          await signInWithRedirect(auth, provider);
-          return;
-        } catch (redirectError) {
-          console.error("Erro no redirect após bloqueio de popup:", redirectError);
-        }
-      } else if (error.code === 'auth/invalid-credential') {
-        toast.error('Credenciais do Google inválidas. Verifique se sua conta do Google está configurada corretamente');
-        console.error('Detalhes do erro:', error.message);
-      } else if (error.code === 'auth/account-exists-with-different-credential') {
-        toast.error('Este email já está associado a outro método de login. Tente fazer login com outro método');
+      if (error.code === 'auth/popup-blocked') {
+        toast.error('O popup de login foi bloqueado. Tentando redirecionamento...');
       } else if (error.code === 'auth/unauthorized-domain') {
-        toast.error('Este domínio não está autorizado para autenticação. Contate o administrador.');
-        console.error('Domínio não autorizado. Você precisa adicionar este domínio ao Firebase Console.');
-        console.warn('Domínio atual:', window.location.hostname);
+        toast.error('Este domínio não está autorizado para autenticação.');
+        console.error('Domínio não autorizado:', window.location.hostname);
+      } else if (error.code === 'auth/internal-error') {
+        toast.error('Erro interno do Firebase. Tente novamente.');
+      } else if (error.code === 'auth/network-request-failed') {
+        toast.error('Erro de conexão. Verifique sua internet.');
       } else {
-        // Pass to general handler for other error types
         handleAuthError(error);
       }
       
@@ -596,6 +522,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onError })
       return false;
     }
   };
+
+  // Efeito para processar resultado do redirecionamento do Google Auth
+  useEffect(() => {
+    const processRedirectResult = async () => {
+      try {
+        console.log("Verificando resultado do redirecionamento...");
+        const result = await getRedirectResult(auth);
+        if (result) {
+          console.log("Login com Google via redirecionamento bem-sucedido:", result.user.email);
+          await processGoogleUser(result.user);
+          toast.success('Login com Google realizado com sucesso!');
+        } else {
+          console.log("Nenhum resultado de redirecionamento encontrado");
+        }
+      } catch (error: any) {
+        console.error("Erro ao processar resultado do redirecionamento:", error);
+        console.error("Código do erro:", error.code);
+        console.error("Mensagem do erro:", error.message);
+        
+        if (error.code === 'auth/unauthorized-domain') {
+          toast.error('Este domínio não está autorizado para autenticação do Google.');
+          console.error('Domínio não autorizado:', window.location.hostname);
+        } else {
+          handleAuthError(error);
+        }
+      }
+    };
+
+    processRedirectResult();
+  }, []);
 
   if (loading) {
     return null;

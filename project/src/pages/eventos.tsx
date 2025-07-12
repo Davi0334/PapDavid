@@ -1,43 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Loader2, ChevronLeft, ChevronRight, Calendar, Theater } from 'lucide-react';
+import { Calendar, CalendarDays, Theater, Clock, Users, ChevronLeft, ChevronRight, Sparkles, Star, MapPin, Zap } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { MobileWrapper } from '@/components/mobile-wrapper';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase-prod';
-
-// Adicione estilo global para garantir scroll vertical
-const styleFixScroll = `
-  <style>
-    body, html, #root {
-      height: auto !important;
-      min-height: 100% !important;
-      overflow-y: auto !important;
-      overflow-x: hidden !important;
-      position: relative !important;
-    }
-    
-    .events-container {
-      padding-bottom: 800px !important;
-      overflow-y: visible !important;
-    }
-    
-    .mobile-content-container {
-      overflow-x: hidden !important;
-      overflow-y: auto !important;
-      max-width: 100% !important;
-      width: 100% !important;
-      height: auto !important;
-      min-height: auto !important;
-    }
-    
-    .mobile-wrapper-fix {
-      overflow-y: auto !important;
-      height: auto !important;
-      min-height: auto !important;
-    }
-  </style>
-`;
+import BottomNav from '../components/bottom-nav';
 
 type Teatro = {
   id: string;
@@ -49,56 +16,45 @@ type Teatro = {
   criador: string;
 };
 
-// Componente de calendário interativo
-const InteractiveCalendar = ({ onDateSelect, eventDates }: { onDateSelect: (date: Date) => void, eventDates: Date[] }) => {
+// Componente de calendário futurístico
+const FuturisticCalendar = ({ onDateSelect, eventDates }: { onDateSelect: (date: Date) => void, eventDates: Date[] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
-  // Função para formatar nome do mês/ano
   const formatMonthYear = (date: Date) => {
     return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };
   
-  // Obter dias da semana
-  const daysOfWeek = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"];
+  const daysOfWeek = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
   
-  // Função para ir para o mês anterior
   const goToPreviousMonth = () => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() - 1);
     setCurrentDate(newDate);
   };
   
-  // Função para ir para o próximo mês
   const goToNextMonth = () => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + 1);
     setCurrentDate(newDate);
   };
   
-  // Calcular dias do calendário para o mês atual
   const getDaysArray = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     
-    // Primeiro dia do mês
     const firstDay = new Date(year, month, 1);
-    // Dia da semana do primeiro dia (0 = Domingo, 1 = Segunda, ..., 6 = Sábado)
     let firstDayOfWeek = firstDay.getDay();
-    // Ajustar para que Segunda seja o dia 0
     firstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
     
-    // Último dia do mês
     const lastDay = new Date(year, month + 1, 0);
     const totalDays = lastDay.getDate();
     
-    // Dias do mês anterior para preencher a primeira semana
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     
     const daysArray = [];
     let week = [];
     
-    // Adicionar dias do mês anterior
     for (let i = 0; i < firstDayOfWeek; i++) {
       week.push({
         day: prevMonthLastDay - firstDayOfWeek + i + 1,
@@ -107,7 +63,6 @@ const InteractiveCalendar = ({ onDateSelect, eventDates }: { onDateSelect: (date
       });
     }
     
-    // Adicionar dias do mês atual
     for (let i = 1; i <= totalDays; i++) {
       if (week.length === 7) {
         daysArray.push(week);
@@ -120,7 +75,6 @@ const InteractiveCalendar = ({ onDateSelect, eventDates }: { onDateSelect: (date
       });
     }
     
-    // Adicionar dias do próximo mês
     const remainingDays = 7 - week.length;
     if (remainingDays > 0) {
       for (let i = 1; i <= remainingDays; i++) {
@@ -136,7 +90,6 @@ const InteractiveCalendar = ({ onDateSelect, eventDates }: { onDateSelect: (date
     return daysArray;
   };
   
-  // Verificar se uma data é hoje
   const isToday = (date: Date) => {
     const today = new Date();
     return date.getDate() === today.getDate() &&
@@ -144,7 +97,6 @@ const InteractiveCalendar = ({ onDateSelect, eventDates }: { onDateSelect: (date
       date.getFullYear() === today.getFullYear();
   };
   
-  // Verificar se uma data é selecionada
   const isSelected = (date: Date) => {
     if (!selectedDate) return false;
     return date.getDate() === selectedDate.getDate() &&
@@ -152,7 +104,6 @@ const InteractiveCalendar = ({ onDateSelect, eventDates }: { onDateSelect: (date
       date.getFullYear() === selectedDate.getFullYear();
   };
   
-  // Verificar se um dia tem evento
   const hasEvent = (date: Date) => {
     return eventDates.some(eventDate => 
       eventDate.getDate() === date.getDate() &&
@@ -161,7 +112,6 @@ const InteractiveCalendar = ({ onDateSelect, eventDates }: { onDateSelect: (date
     );
   };
   
-  // Manipulador de clique em uma data
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
     onDateSelect(date);
@@ -170,68 +120,182 @@ const InteractiveCalendar = ({ onDateSelect, eventDates }: { onDateSelect: (date
   const daysArray = getDaysArray();
   
   return (
-    <div className="mb-6 bg-white rounded-lg p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold capitalize">{formatMonthYear(currentDate)}</h2>
-        <div className="flex gap-2">
+    <div style={{
+      background: 'rgba(255, 255, 255, 0.9)',
+      backdropFilter: 'blur(20px)',
+      borderRadius: '24px',
+      padding: '24px',
+      border: '1px solid rgba(255, 255, 255, 0.3)',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+      position: 'relative',
+      overflow: 'hidden',
+      marginBottom: '20px'
+    }}>
+      {/* Elemento decorativo */}
+      <div style={{
+        position: 'absolute',
+        top: '-20px',
+        right: '-20px',
+        width: '80px',
+        height: '80px',
+        background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.1))',
+        borderRadius: '50%',
+        animation: 'float 5s ease-in-out infinite'
+      }} />
+      
+      {/* Header do calendário */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '20px' 
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+            borderRadius: '12px',
+            padding: '8px'
+          }}>
+            <CalendarDays size={20} color="white" />
+          </div>
+          <h2 style={{
+            color: '#333',
+            fontSize: '20px',
+            fontWeight: '700',
+            margin: 0,
+            textTransform: 'capitalize'
+          }}>{formatMonthYear(currentDate)}</h2>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '8px' }}>
           <button 
             onClick={goToPreviousMonth}
-            className="text-gray-500 hover:text-gray-700"
+            style={{
+              background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.5))',
+              border: 'none',
+              borderRadius: '12px',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.9)'}
+            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft size={20} style={{ color: '#fc6c5f' }} />
           </button>
           <button 
             onClick={goToNextMonth}
-            className="text-gray-500 hover:text-gray-700"
+            style={{
+              background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.5))',
+              border: 'none',
+              borderRadius: '12px',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.9)'}
+            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight size={20} style={{ color: '#fc6c5f' }} />
           </button>
         </div>
       </div>
       
       {/* Dias da semana */}
-      <div className="grid grid-cols-7 gap-1 text-center mb-2">
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
+        gap: '8px',
+        marginBottom: '16px',
+        textAlign: 'center'
+      }}>
         {daysOfWeek.map(day => (
-          <div key={day} className="text-xs font-medium">
+          <div key={day} style={{
+            color: '#666',
+            fontSize: '12px',
+            fontWeight: '600',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            padding: '8px 0'
+          }}>
             {day}
           </div>
         ))}
       </div>
       
       {/* Dias do mês */}
-      <div className="space-y-1">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {daysArray.map((week, weekIndex) => (
-          <div key={weekIndex} className="grid grid-cols-7 gap-1 text-center">
+          <div key={weekIndex} style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            gap: '6px',
+            textAlign: 'center'
+          }}>
             {week.map((dayObj, dayIndex) => {
-              // Estilos de acordo com o tipo de dia
-              let dayClass = "rounded-full w-9 h-9 flex items-center justify-center text-sm cursor-pointer relative";
-              
-              if (dayObj.month === 'current') {
-                if (isSelected(dayObj.date)) {
-                  dayClass += " bg-[#FF7F7F] text-white";
-                } else if (isToday(dayObj.date)) {
-                  dayClass += " bg-blue-100 text-blue-800 border border-blue-300";
-                } else {
-                  dayClass += " bg-white text-black border border-gray-200 hover:bg-gray-100";
-                }
-                
-                // Adicionar indicador de evento
-                if (hasEvent(dayObj.date)) {
-                  dayClass += " font-bold";
-                }
-              } else {
-                dayClass += " text-gray-400 border border-gray-100";
-              }
+              const isCurrentMonth = dayObj.month === 'current';
+              const isDayToday = isToday(dayObj.date);
+              const isDaySelected = isSelected(dayObj.date);
+              const dayHasEvent = hasEvent(dayObj.date);
               
               return (
                 <div 
                   key={`${weekIndex}-${dayIndex}`} 
-                  className={dayClass}
-                  onClick={() => dayObj.month === 'current' && handleDateClick(dayObj.date)}
+                  onClick={() => isCurrentMonth && handleDateClick(dayObj.date)}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    fontWeight: isDayToday || isDaySelected ? '700' : '500',
+                    cursor: isCurrentMonth ? 'pointer' : 'default',
+                    background: isDaySelected ? 'linear-gradient(135deg, #fc6c5f, #ff8a7a)' :
+                               isDayToday ? 'linear-gradient(135deg, rgba(252, 108, 95, 0.2), rgba(255, 255, 255, 0.8))' :
+                               dayHasEvent && isCurrentMonth ? 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.5))' :
+                               'transparent',
+                    color: isDaySelected ? 'white' :
+                           isDayToday ? '#fc6c5f' :
+                           isCurrentMonth ? '#333' : '#ccc',
+                    border: isDayToday && !isDaySelected ? '2px solid #fc6c5f' : 'none',
+                    transition: 'all 0.3s ease',
+                    position: 'relative',
+                    boxShadow: isDaySelected ? '0 4px 15px rgba(252, 108, 95, 0.3)' : 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (isCurrentMonth && !isDaySelected) {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.8))';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (isCurrentMonth && !isDaySelected) {
+                      e.currentTarget.style.background = dayHasEvent ? 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.5))' : 'transparent';
+                    }
+                  }}
                 >
                   {dayObj.day}
-                  {hasEvent(dayObj.date) && dayObj.month === 'current' && (
-                    <span className="absolute h-1 w-1 bg-[#FF7F7F] rounded-full -bottom-0.5 left-1/2 transform -translate-x-1/2"></span>
+                  {dayHasEvent && isCurrentMonth && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '4px',
+                      right: '4px',
+                      width: '6px',
+                      height: '6px',
+                      background: isDaySelected ? 'rgba(255, 255, 255, 0.8)' : '#fc6c5f',
+                      borderRadius: '50%'
+                    }} />
                   )}
                 </div>
               );
@@ -243,21 +307,19 @@ const InteractiveCalendar = ({ onDateSelect, eventDates }: { onDateSelect: (date
   );
 };
 
-// Função auxiliar para formatar a data
 const formatDate = (dateString: string): string => {
   try {
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long'
     });
   } catch (error) {
-    return dateString; // Retorna a string original se não for possível formatar
+    return 'Data inválida';
   }
 };
 
-// Função para verificar se um evento ocorre em uma data específica
 const isEventOnDate = (eventDate: string, selectedDate: Date): boolean => {
   try {
     const date = new Date(eventDate);
@@ -278,23 +340,6 @@ export function Eventos() {
   const [loading, setLoading] = useState(true);
   const [eventDates, setEventDates] = useState<Date[]>([]);
 
-  // Injetar estilos para garantir scroll
-  useEffect(() => {
-    // Adiciona o estilo ao head se não existir
-    if (!document.querySelector('#fix-scroll-eventos')) {
-      const styleEl = document.createElement('div');
-      styleEl.id = 'fix-scroll-eventos';
-      styleEl.innerHTML = styleFixScroll;
-      document.head.appendChild(styleEl);
-    }
-    
-    // Remover quando o componente for desmontado
-    return () => {
-      const styleEl = document.querySelector('#fix-scroll-eventos');
-      if (styleEl) styleEl.remove();
-    };
-  }, []);
-
   useEffect(() => {
     carregarTeatros();
   }, [user]);
@@ -308,7 +353,6 @@ export function Eventos() {
     
     setLoading(true);
     try {
-      // Buscar teatros
       const teatrosRef = collection(db, 'teatros');
       const q = query(teatrosRef, where('participantes', 'array-contains', user.uid));
       const docs = await getDocs(q);
@@ -321,7 +365,6 @@ export function Eventos() {
       
       setTeatros(teatrosDoUsuario);
       
-      // Extrair datas dos eventos para o calendário
       const datas = teatrosDoUsuario
         .filter(teatro => teatro.dataApresentacao)
         .map(teatro => new Date(teatro.dataApresentacao));
@@ -330,41 +373,31 @@ export function Eventos() {
     } catch (error) {
       console.error('Erro ao carregar teatros:', error);
       
-      // Dados de exemplo para desenvolvimento
+      // Dados de exemplo
       const dataAtual = new Date();
       const teatrosExemplo: Teatro[] = [
         {
           id: "teatro1",
-          titulo: "Teatro Criado:",
-          descricao: "Descrição do teatro",
+          titulo: "Romance de Shakespeare",
+          descricao: "Peça clássica de romance",
           diasEnsaio: ["Terça", "Quinta"],
           dataApresentacao: new Date(dataAtual.getFullYear(), dataAtual.getMonth(), 18).toISOString(),
-          participantes: [],
-          criador: user.uid
+          participantes: [user?.uid || ''],
+          criador: user?.uid || ''
         },
         {
           id: "teatro2",
-          titulo: "Título",
-          descricao: "Descrição do teatro",
+          titulo: "Comédia Musical",
+          descricao: "Espetáculo musical divertido",
           diasEnsaio: ["Segunda", "Quarta"],
-          dataApresentacao: new Date(dataAtual.getFullYear(), dataAtual.getMonth(), 15).toISOString(),
-          participantes: [],
-          criador: "outro"
-        },
-        {
-          id: "teatro3",
-          titulo: "Título",
-          descricao: "Descrição do teatro",
-          diasEnsaio: ["Sexta"],
-          dataApresentacao: new Date(dataAtual.getFullYear(), dataAtual.getMonth(), 22).toISOString(),
-          participantes: [],
+          dataApresentacao: new Date(dataAtual.getFullYear(), dataAtual.getMonth(), 25).toISOString(),
+          participantes: [user?.uid || ''],
           criador: "outro"
         }
       ];
       
       setTeatros(teatrosExemplo);
       
-      // Extrair datas dos eventos para o calendário
       const datas = teatrosExemplo
         .filter(teatro => teatro.dataApresentacao)
         .map(teatro => new Date(teatro.dataApresentacao));
@@ -375,7 +408,6 @@ export function Eventos() {
     }
   };
 
-  // Filtrar teatros quando data selecionada muda
   useEffect(() => {
     if (teatros.length > 0) {
       const teatrosFiltrados = teatros.filter(teatro => 
@@ -389,212 +421,514 @@ export function Eventos() {
     setSelectedDate(date);
   };
 
-  return (
-    <MobileWrapper 
-      title="Eventos" 
-      showBackButton={false} 
-      showBottomNav={true}
-      fullHeight={false}
-      safeArea={true}
+  const renderEventCard = (teatro: Teatro, index: number) => (
+    <div 
+      key={teatro.id}
+      onClick={() => navigate(`/teatro/${teatro.id}`)}
+      style={{
+        background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.95))',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '20px',
+        padding: '20px',
+        border: '1px solid rgba(252, 108, 95, 0.2)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+        position: 'relative',
+        overflow: 'hidden',
+        animation: `slideIn 0.6s ease-out ${index * 0.1}s both`
+      }}
+      onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+      onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
     >
-      <div className="events-container" style={{
-        marginBottom: '60px'
+      {/* Elemento decorativo */}
+      <div style={{
+        position: 'absolute',
+        top: '-10px',
+        right: '-10px',
+        width: '40px',
+        height: '40px',
+        background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.2), rgba(255, 255, 255, 0.2))',
+        borderRadius: '50%',
+        animation: 'float 3s ease-in-out infinite'
+      }} />
+      
+      {/* Header do evento */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+              borderRadius: '8px',
+              padding: '6px',
+              marginRight: '10px'
+            }}>
+              <Theater size={16} color="white" />
+            </div>
+            <span style={{
+              color: '#666',
+              fontSize: '12px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Apresentação
+            </span>
+          </div>
+          <h3 style={{
+            color: '#333',
+            fontSize: '20px',
+            fontWeight: '700',
+            margin: 0,
+            lineHeight: '1.2'
+          }}>{teatro.titulo}</h3>
+        </div>
+        
+        <div style={{
+          background: 'linear-gradient(135deg, #22c55e, #4ade80)',
+          borderRadius: '50%',
+          width: '12px',
+          height: '12px',
+          animation: 'pulse 2s ease-in-out infinite',
+          marginTop: '8px'
+        }} />
+      </div>
+      
+      {/* Informações do evento */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
+            borderRadius: '10px',
+            width: '32px',
+            height: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Clock size={16} color="white" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ 
+              color: '#666', 
+              fontSize: '12px', 
+              margin: 0, 
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>Data & Hora</p>
+            <p style={{ 
+              color: '#333', 
+              fontSize: '14px', 
+              margin: 0, 
+              fontWeight: '600' 
+            }}>
+              {formatDate(teatro.dataApresentacao)} às {new Date(teatro.dataApresentacao).toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #06b6d4, #22d3ee)',
+            borderRadius: '10px',
+            width: '32px',
+            height: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Users size={16} color="white" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ 
+              color: '#666', 
+              fontSize: '12px', 
+              margin: 0, 
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>Participantes</p>
+            <p style={{ 
+              color: '#333', 
+              fontSize: '14px', 
+              margin: 0, 
+              fontWeight: '600' 
+            }}>{teatro.participantes?.length || 0} pessoas</p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Botão de ação */}
+      <div style={{ 
+        marginTop: '16px', 
+        paddingTop: '16px', 
+        borderTop: '1px solid rgba(252, 108, 95, 0.1)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Zap size={14} style={{ color: '#fc6c5f' }} />
+          <span style={{ 
+            color: '#fc6c5f', 
+            fontSize: '12px', 
+            fontWeight: '600' 
+          }}>
+            Clique para ver detalhes
+          </span>
+        </div>
+        
+        <div style={{
+          background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+          borderRadius: '50%',
+          width: '28px',
+          height: '28px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '14px',
+          fontWeight: 'bold',
+          color: 'white',
+          boxShadow: '0 4px 12px rgba(252, 108, 95, 0.3)'
+        }}>
+          →
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #fc6c5f 0%, #ff8a7a 25%, #ffb8a3 50%, #ffffff 75%, #f8f9fa 100%)',
+      backgroundSize: '400% 400%',
+      animation: 'gradientFlow 15s ease infinite',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Elementos decorativos de fundo */}
+      <div style={{
+        position: 'absolute',
+        top: '12%',
+        left: '8%',
+        width: '70px',
+        height: '70px',
+        background: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: '50%',
+        animation: 'float 6s ease-in-out infinite'
+      }} />
+      <div style={{
+        position: 'absolute',
+        top: '20%',
+        right: '12%',
+        width: '50px',
+        height: '50px',
+        background: 'rgba(255, 255, 255, 0.15)',
+        borderRadius: '50%',
+        animation: 'float 8s ease-in-out infinite reverse'
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: '25%',
+        left: '6%',
+        width: '60px',
+        height: '60px',
+        background: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: '50%',
+        animation: 'float 7s ease-in-out infinite'
+      }} />
+
+      {/* Header */}
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+        padding: '20px 20px 24px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '16px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7))',
+            borderRadius: '16px',
+            padding: '12px',
+            marginRight: '12px',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)'
+          }}>
+            <Calendar size={24} style={{ color: '#fc6c5f' }} />
+          </div>
+          <h1 style={{
+            color: 'white',
+            fontSize: '28px',
+            fontWeight: '800',
+            margin: 0,
+            textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
+            background: 'linear-gradient(135deg, #ffffff, #f8f9fa)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>Eventos</h1>
+        </div>
+        
+        <div style={{ textAlign: 'center' }}>
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.9)',
+            fontSize: '16px',
+            fontWeight: '600',
+            margin: 0,
+            textShadow: '0 1px 5px rgba(0, 0, 0, 0.2)'
+          }}>
+            Seus eventos teatrais! 🎭
+          </p>
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.8)',
+            fontSize: '14px',
+            fontWeight: '500',
+            margin: '4px 0 0',
+            textShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
+          }}>
+            Acompanhe apresentações e ensaios
+          </p>
+        </div>
+      </div>
+      
+      {/* Conteúdo */}
+      <div style={{
+        maxWidth: '430px',
+        margin: '0 auto',
+        padding: '24px 20px 100px',
+        position: 'relative',
+        zIndex: 5
       }}>
         {loading ? (
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            padding: '40px 0' 
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '60px 20px',
+            textAlign: 'center'
           }}>
-            <Loader2 size={32} style={{
-              color: '#FF7F7F',
-              animation: 'spin 1s linear infinite'
+            <div style={{
+              width: '60px',
+              height: '60px',
+              border: '4px solid rgba(252, 108, 95, 0.3)',
+              borderTop: '4px solid #fc6c5f',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              marginBottom: '20px'
             }} />
+            <p style={{
+              color: '#666',
+              fontSize: '16px',
+              fontWeight: '500'
+            }}>Carregando eventos...</p>
           </div>
         ) : (
           <>
-            {/* Calendário interativo */}
-            <InteractiveCalendar onDateSelect={handleDateSelect} eventDates={eventDates} />
+            {/* Calendário */}
+            <FuturisticCalendar onDateSelect={handleDateSelect} eventDates={eventDates} />
             
-            {/* Lista de Apresentações na data selecionada */}
-            <div style={{ 
-              marginBottom: '20px',
-              padding: '0 12px' 
+            {/* Eventos da data selecionada */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.9)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '24px',
+              padding: '24px',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              position: 'relative',
+              overflow: 'hidden',
+              marginBottom: '20px'
             }}>
-              <h2 style={{ 
-                fontSize: '18px', 
-                fontWeight: '600', 
-                marginBottom: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <Calendar size={18} />
-                Apresentações em {formatDate(selectedDate.toISOString())}
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+                  borderRadius: '12px',
+                  padding: '8px',
+                  marginRight: '12px'
+                }}>
+                  <MapPin size={20} color="white" />
+                </div>
+                <h2 style={{
+                  color: '#333',
+                  fontSize: '20px',
+                  fontWeight: '700',
+                  margin: 0
+                }}>
+                  {selectedDate.toLocaleDateString('pt-BR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long'
+                  })}
+                </h2>
+              </div>
               
               {filteredTeatros.length === 0 ? (
-                <div style={{ 
-                  backgroundColor: '#f9f9f9', 
-                  borderRadius: '8px', 
-                  padding: '15px', 
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(156, 163, 175, 0.1), rgba(255, 255, 255, 0.5))',
+                  borderRadius: '16px',
+                  padding: '30px',
                   textAlign: 'center',
-                  color: '#777'
+                  border: '1px solid rgba(156, 163, 175, 0.2)'
                 }}>
-                  Não há apresentações programadas para esta data.
+                  <div style={{
+                    background: 'linear-gradient(135deg, #9ca3af, #d1d5db)',
+                    borderRadius: '50%',
+                    width: '60px',
+                    height: '60px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 20px',
+                    animation: 'pulse 2s ease-in-out infinite'
+                  }}>
+                    <Calendar size={30} color="white" />
+                  </div>
+                  
+                  <h3 style={{
+                    color: '#333',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    marginBottom: '10px'
+                  }}>Sem eventos</h3>
+                  
+                  <p style={{
+                    color: '#666',
+                    fontSize: '16px',
+                    lineHeight: '1.5'
+                  }}>Não há apresentações programadas para esta data.</p>
                 </div>
               ) : (
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '12px'
-                }}>
-                  {filteredTeatros.map(teatro => (
-                    <Link 
-                      to={`/teatro/${teatro.id}`} 
-                      key={teatro.id} 
-                      style={{
-                        display: 'block',
-                        textDecoration: 'none'
-                      }}
-                    >
-                      <div style={{
-                        backgroundColor: '#FF7F7F',
-                        borderRadius: '8px',
-                        padding: '15px',
-                        color: 'white',
-                        width: '100%',
-                        boxSizing: 'border-box'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'flex-start'
-                        }}>
-                          <Theater size={18} style={{
-                            marginRight: '10px',
-                            marginTop: '3px',
-                            flexShrink: 0
-                          }} />
-                          <div style={{
-                            width: 'calc(100% - 28px)'
-                          }}>
-                            <h3 style={{
-                              fontSize: '18px',
-                              fontWeight: '500',
-                              margin: '0 0 5px 0'
-                            }}>
-                              {teatro.titulo}
-                            </h3>
-                            {teatro.descricao && (
-                              <p style={{
-                                fontSize: '14px',
-                                margin: '0 0 5px 0'
-                              }}>
-                                {teatro.descricao}
-                              </p>
-                            )}
-                            <p style={{
-                              fontSize: '14px',
-                              margin: 0
-                            }}>
-                              Horário: {new Date(teatro.dataApresentacao).toLocaleTimeString('pt-BR', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {filteredTeatros.map((teatro, index) => renderEventCard(teatro, index))}
                 </div>
               )}
             </div>
             
-            {/* Lista de todas as apresentações */}
-            <div style={{ 
-              marginBottom: '20px',
-              padding: '0 12px'  
+            {/* Todos os eventos */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.9)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '24px',
+              padding: '24px',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              position: 'relative',
+              overflow: 'hidden'
             }}>
-              <h2 style={{ 
-                fontSize: '18px', 
-                fontWeight: '600', 
-                marginBottom: '12px'
-              }}>
-                Todas as Apresentações
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+                  borderRadius: '12px',
+                  padding: '8px',
+                  marginRight: '12px'
+                }}>
+                  <Sparkles size={20} color="white" />
+                </div>
+                <h2 style={{
+                  color: '#333',
+                  fontSize: '20px',
+                  fontWeight: '700',
+                  margin: 0
+                }}>Próximas Apresentações</h2>
+              </div>
               
               {teatros.length === 0 ? (
-                <div style={{ 
-                  backgroundColor: '#f9f9f9', 
-                  borderRadius: '8px', 
-                  padding: '15px', 
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(252, 108, 95, 0.05), rgba(255, 255, 255, 0.5))',
+                  borderRadius: '16px',
+                  padding: '40px 30px',
                   textAlign: 'center',
-                  color: '#777'
+                  border: '1px solid rgba(252, 108, 95, 0.1)'
                 }}>
-                  Você não tem apresentações programadas.
+                  <div style={{
+                    background: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+                    borderRadius: '50%',
+                    width: '80px',
+                    height: '80px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 20px',
+                    animation: 'pulse 2s ease-in-out infinite'
+                  }}>
+                    <Star size={40} color="white" />
+                  </div>
+                  
+                  <h3 style={{
+                    color: '#333',
+                    fontSize: '20px',
+                    fontWeight: '700',
+                    marginBottom: '10px'
+                  }}>Nenhum evento ainda</h3>
+                  
+                  <p style={{
+                    color: '#666',
+                    fontSize: '16px',
+                    marginBottom: '25px',
+                    lineHeight: '1.5'
+                  }}>Você ainda não tem apresentações programadas. Participe de um teatro para ver eventos aqui!</p>
                 </div>
               ) : (
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '12px'
-                }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {teatros
                     .filter((teatro: Teatro) => teatro.dataApresentacao)
                     .sort((a: Teatro, b: Teatro) => new Date(a.dataApresentacao).getTime() - new Date(b.dataApresentacao).getTime())
-                    .map((teatro: Teatro) => (
-                      <Link 
-                        to={`/teatro/${teatro.id}`} 
-                        key={teatro.id} 
-                        style={{
-                          display: 'block',
-                          textDecoration: 'none'
-                        }}
-                      >
-                        <div style={{
-                          backgroundColor: '#FF7F7F',
-                          borderRadius: '8px',
-                          padding: '15px',
-                          color: 'white',
-                          width: '100%',
-                          boxSizing: 'border-box'
-                        }}>
-                          <h3 style={{
-                            fontSize: '18px',
-                            fontWeight: '500',
-                            margin: '0 0 5px 0'
-                          }}>
-                            {teatro.titulo}
-                          </h3>
-                          <p style={{
-                            fontSize: '14px',
-                            margin: '0 0 3px 0'
-                          }}>
-                            Data: {formatDate(teatro.dataApresentacao)}
-                          </p>
-                          <p style={{
-                            fontSize: '14px',
-                            margin: 0
-                          }}>
-                            Horário: {new Date(teatro.dataApresentacao).toLocaleTimeString('pt-BR', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                        </div>
-                      </Link>
-                    ))}
+                    .map((teatro: Teatro, index: number) => renderEventCard(teatro, index))}
                 </div>
               )}
             </div>
-            
-            {/* Garantir espaço para scroll - extremamente grande */}
-            <div style={{ height: '800px' }}></div>
           </>
         )}
       </div>
-    </MobileWrapper>
+      
+      <BottomNav />
+      
+      {/* Estilos CSS para animações */}
+      <style>{`
+        @keyframes gradientFlow {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
   );
 }

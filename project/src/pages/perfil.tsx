@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -7,13 +7,16 @@ import { updateProfile } from 'firebase/auth';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase-prod';
 import { auth } from '@/lib/firebase-prod';
-import { MobileWrapper } from '@/components/mobile-wrapper';
+import { Camera, Edit2, LogOut, Lock, Mail, User, ChevronRight, Award, Users } from 'lucide-react';
 
 export function Perfil() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [photoURL, setPhotoURL] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newDisplayName, setNewDisplayName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [stats, setStats] = useState({
     gruposAtivos: 0,
@@ -21,10 +24,9 @@ export function Perfil() {
   });
   
   useEffect(() => {
-    // Sempre priorizar a foto do Auth (Google ou upload manual)
     setPhotoURL(user?.photoURL || null);
+    setNewDisplayName(user?.displayName || '');
     
-    // Fetch user stats from Firestore
     const fetchUserStats = async () => {
       if (!user) return;
       
@@ -46,6 +48,35 @@ export function Perfil() {
     
     fetchUserStats();
   }, [user]);
+
+  const handleUpdateDisplayName = async () => {
+    if (!user || !newDisplayName.trim()) return;
+    
+    try {
+      setLoading(true);
+      toast.loading('Atualizando nome...');
+      
+      await updateProfile(user, { displayName: newDisplayName.trim() });
+      
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, { 
+        displayName: newDisplayName.trim(),
+        updatedAt: new Date()
+      });
+      
+      await auth.currentUser?.reload();
+      
+      setIsEditingName(false);
+      toast.dismiss();
+      toast.success('Nome atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar nome:', error);
+      toast.dismiss();
+      toast.error('Erro ao atualizar nome');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const handleLogout = async () => {
     if (window.confirm('Tem certeza que deseja sair?')) {
@@ -75,9 +106,8 @@ export function Perfil() {
       await updateProfile(user, { photoURL: downloadURL });
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, { photoURL: downloadURL, updatedAt: new Date() });
-      // Forçar reload do usuário global do Auth
       await auth.currentUser?.reload();
-      setPhotoURL(auth.currentUser?.photoURL || null);
+      setPhotoURL(downloadURL);
       toast.dismiss();
       toast.success('Foto de perfil atualizada com sucesso!');
     } catch (error) {
@@ -90,116 +120,509 @@ export function Perfil() {
   };
   
   const getInitial = () => {
-    if (!user || !user.displayName) return '?';
+    if (!user || !user.displayName) return user?.email?.charAt(0).toUpperCase() || '?';
     return user.displayName.charAt(0).toUpperCase();
   };
 
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+
   return (
-    <MobileWrapper title="Perfil" showBottomNav={true}>
-      <div className="profile-container flex flex-col gap-5">
-        <div className="profile-photo-container flex flex-col items-center mt-4 mb-6">
-          <div 
-            className="profile-avatar w-28 h-28 rounded-full bg-[#8a2be2] mb-3"
-            style={{ 
-              backgroundImage: user?.photoURL ? `url(${user.photoURL})` : 'none',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              position: 'relative'
-            }}
-            onClick={handleFileClick}
-          >
-            {loading && (
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10,
-                borderRadius: '50%'
-              }}>
-                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+    <div style={{ minHeight: '100vh', backgroundColor: 'white', paddingBottom: '80px' }}>
+      {/* Cabeçalho */}
+      <div style={{ backgroundColor: '#fc6c5f', paddingTop: '48px', paddingBottom: '24px', paddingLeft: '16px', paddingRight: '16px' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', textAlign: 'center', color: 'white', margin: 0 }}>Perfil</h1>
+      </div>
+      
+      {/* Conteúdo principal */}
+      <div style={{ padding: '24px 16px' }}>
+        {/* Cartão de perfil */}
+        <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', border: '1px solid #f3f4f6', overflow: 'hidden', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '24px', paddingBottom: '24px', paddingLeft: '16px', paddingRight: '16px' }}>
+            {/* Foto de perfil */}
+            <div style={{ position: 'relative', marginBottom: '16px' }}>
+              <div 
+                style={{
+                  width: '96px',
+                  height: '96px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  border: '4px solid #fc6c5f',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                  transition: 'transform 0.2s ease'
+                }}
+                onClick={handleFileClick}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                {photoURL ? (
+                  <div 
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      backgroundImage: `url(${photoURL})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center'
+                    }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', backgroundColor: '#fc6c5f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white' }}>{getInitial()}</span>
+                  </div>
+                )}
+                
+                {/* Overlay para edição */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0,
+                  transition: 'opacity 0.2s ease'
+                }}
+                className="edit-overlay"
+                >
+                  <Camera style={{ color: 'white', width: '24px', height: '24px' }} />
+                </div>
+                
+                {/* Indicador de carregamento */}
+                {loading && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      border: '2px solid white',
+                      borderTop: '2px solid transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                  </div>
+                )}
+              </div>
+              
+              <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+            </div>
+            
+            {/* Nome do usuário */}
+            {isEditingName ? (
+              <div style={{ width: '100%', maxWidth: '288px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    value={newDisplayName}
+                    onChange={(e) => setNewDisplayName(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      outline: 'none'
+                    }}
+                    placeholder="Seu nome"
+                    disabled={loading}
+                  />
+                  <button
+                    onClick={handleUpdateDisplayName}
+                    disabled={loading || !newDisplayName.trim()}
+                    style={{
+                      padding: '12px 16px',
+                      backgroundColor: loading || !newDisplayName.trim() ? '#d1d5db' : '#fc6c5f',
+                      color: 'white',
+                      borderRadius: '8px',
+                      fontWeight: '500',
+                      border: 'none',
+                      cursor: loading || !newDisplayName.trim() ? 'not-allowed' : 'pointer',
+                      transition: 'background-color 0.2s ease'
+                    }}
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditingName(false);
+                      setNewDisplayName(user?.displayName || '');
+                    }}
+                    style={{
+                      padding: '12px 16px',
+                      backgroundColor: '#e5e7eb',
+                      color: '#374151',
+                      borderRadius: '8px',
+                      fontWeight: '500',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s ease'
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
+                  {user?.displayName || user?.email?.split('@')[0] || 'Usuário'}
+                </h2>
+                <button
+                  onClick={() => setIsEditingName(true)}
+                  style={{
+                    marginLeft: '8px',
+                    padding: '4px',
+                    color: '#9ca3af',
+                    borderRadius: '50%',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    transition: 'color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#fc6c5f';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#9ca3af';
+                  }}
+                >
+                  <Edit2 style={{ width: '16px', height: '16px' }} />
+                </button>
               </div>
             )}
             
-            {!user?.photoURL && (
-              <span style={{ fontSize: '2rem', color: '#fff' }}>
-                {getInitial()}
-              </span>
-            )}
-          </div>
-          
-          <button 
-            type="button"
-            onClick={handleFileClick} 
-            className="profile-photo-button bg-white text-[#8a2be2] py-2 px-5 rounded-full shadow-sm font-medium text-sm transition-all hover:shadow-md active:scale-95"
-            disabled={loading}
-          >
-            {loading ? 'Carregando...' : 'Alterar foto'}
-          </button>
-          
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            accept="image/*"
-            onChange={handleFileChange}
-          />
-        </div>
-        
-        <div className="profile-info-card bg-white rounded-xl p-5 shadow-sm mb-5">
-          <div className="profile-info-item flex border-b border-gray-100 pb-4 mb-4">
-            <div className="profile-info-label font-semibold text-gray-500 w-24">Nome:</div>
-            <div className="text-gray-800 font-medium">{user?.displayName || 'Usuário'}</div>
-          </div>
-          
-          <div className="profile-info-item flex">
-            <div className="profile-info-label font-semibold text-gray-500 w-24">Email:</div>
-            <div className="text-gray-800 font-medium">{user?.email || 'email@exemplo.com'}</div>
-          </div>
-        </div>
-        
-        <div className="stats-card bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-5 shadow-md mb-5 text-white">
-          <h3 className="text-lg font-semibold mb-3">Estatísticas</h3>
-          <div className="flex justify-between">
-            <div className="text-center">
-              <div className="text-xl font-bold">{stats.gruposAtivos}</div>
-              <div className="text-xs opacity-80">Grupos Ativos</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold">{stats.participacoes}</div>
-              <div className="text-xs opacity-80">Participações</div>
+            <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '24px', margin: '0 0 24px 0' }}>{user?.email}</p>
+            
+            {/* Estatísticas */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%' }}>
+              <div style={{ backgroundColor: '#f9fafb', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid #f3f4f6' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fc6c5f', marginBottom: '4px' }}>{stats.gruposAtivos}</div>
+                <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Grupos Ativos</div>
+              </div>
+              <div style={{ backgroundColor: '#f9fafb', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid #f3f4f6' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fc6c5f', marginBottom: '4px' }}>{stats.participacoes}</div>
+                <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Participações</div>
+              </div>
             </div>
           </div>
         </div>
         
-        <div className="settings-card bg-white rounded-xl p-5 shadow-sm mb-5">
-          <h3 className="text-lg font-semibold mb-3">Configurações</h3>
+        {/* Informações pessoais */}
+        <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', border: '1px solid #f3f4f6', overflow: 'hidden', marginBottom: '24px' }}>
+          <div style={{ padding: '12px 16px', backgroundColor: '#f9fafb', borderBottom: '1px solid #f3f4f6' }}>
+            <h3 style={{ fontWeight: '600', color: '#1f2937', display: 'flex', alignItems: 'center', margin: 0 }}>
+              <User style={{ width: '20px', height: '20px', color: '#fc6c5f', marginRight: '8px' }} />
+              Informações Pessoais
+            </h3>
+          </div>
+          
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderBottom: '1px solid #f3f4f6' }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px', margin: '0 0 4px 0' }}>Nome</p>
+                  <p style={{ fontWeight: '500', color: '#1f2937', margin: 0 }}>{user?.displayName || 'Não definido'}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsEditingName(true)}
+                style={{
+                  padding: '8px',
+                  color: '#9ca3af',
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  cursor: 'pointer',
+                  transition: 'color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#fc6c5f';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#9ca3af';
+                }}
+              >
+                <Edit2 style={{ width: '16px', height: '16px' }} />
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <Mail style={{ width: '20px', height: '20px', color: '#fc6c5f', marginRight: '12px' }} />
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px', margin: '0 0 4px 0' }}>Email</p>
+                  <p style={{ fontWeight: '500', color: '#1f2937', margin: 0 }}>{user?.email}</p>
+                </div>
+              </div>
+              <div style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '500', color: '#065f46', backgroundColor: '#d1fae5' }}>
+                Verificado
+              </div>
+            </div>
+          </div>
         </div>
         
-        <div className="flex flex-col gap-3 mt-2 mb-20">
-          <button 
-            className="flex items-center justify-center bg-white text-[#2c3e50] py-3 px-5 rounded-xl shadow-sm font-medium transition-all hover:shadow-md active:scale-95 w-full"
-            onClick={() => navigate('/alterar-senha')}
-          >
-            <span className="mr-2">🔒</span>
-            Alterar Senha
-          </button>
+        {/* Ações rápidas */}
+        <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', border: '1px solid #f3f4f6', overflow: 'hidden', marginBottom: '24px' }}>
+          <div style={{ padding: '12px 16px', backgroundColor: '#f9fafb', borderBottom: '1px solid #f3f4f6' }}>
+            <h3 style={{ fontWeight: '600', color: '#1f2937', margin: 0 }}>Ações Rápidas</h3>
+          </div>
           
-          <button 
-            className="flex items-center justify-center bg-[#f8f9fa] text-[#e74c3c] border border-[#e74c3c] py-3 px-5 rounded-xl font-medium transition-all hover:bg-[#e74c3c] hover:text-white active:scale-95 w-full mb-10"
-            onClick={handleLogout}
-          >
-            <span className="mr-2">↩</span>
-            Sair da conta
-          </button>
+          {/* Botões organizados em grid 2x2 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px' }}>
+            <button 
+              onClick={() => navigate('/alterar-senha')}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px',
+                border: 'none',
+                backgroundColor: 'white',
+                borderRight: '1px solid #f3f4f6',
+                borderBottom: '1px solid #f3f4f6',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f9fafb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+              }}
+            >
+              <Lock style={{ width: '24px', height: '24px', color: '#fc6c5f', marginBottom: '8px' }} />
+              <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1f2937' }}>Alterar Senha</span>
+            </button>
+            
+            <button 
+              onClick={() => navigate('/teatros')}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px',
+                border: 'none',
+                backgroundColor: 'white',
+                borderBottom: '1px solid #f3f4f6',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f9fafb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+              }}
+            >
+              <Users style={{ width: '24px', height: '24px', color: '#fc6c5f', marginBottom: '8px' }} />
+              <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1f2937' }}>Meus Grupos</span>
+            </button>
+            
+            <button 
+              onClick={() => navigate('/eventos')}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px',
+                border: 'none',
+                backgroundColor: 'white',
+                borderRight: '1px solid #f3f4f6',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f9fafb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+              }}
+            >
+              <Award style={{ width: '24px', height: '24px', color: '#fc6c5f', marginBottom: '8px' }} />
+              <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1f2937' }}>Meus Eventos</span>
+            </button>
+            
+            <button 
+              onClick={handleLogout}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px',
+                border: 'none',
+                backgroundColor: 'white',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#fef2f2';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+              }}
+            >
+              <LogOut style={{ width: '24px', height: '24px', color: '#ef4444', marginBottom: '8px' }} />
+              <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#dc2626' }}>Sair</span>
+            </button>
+          </div>
         </div>
       </div>
-    </MobileWrapper>
+      
+      {/* Barra de navegação inferior igual às outras páginas */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        position: 'fixed', 
+        bottom: 0, 
+        left: 0, 
+        right: 0, 
+        backgroundColor: 'white', 
+        padding: '10px 0', 
+        borderTop: '1px solid #e0e0e0', 
+        zIndex: 10, 
+        maxWidth: '430px', 
+        margin: '0 auto', 
+        boxShadow: '0 -2px 10px rgba(0,0,0,0.05)' 
+      }}>
+        <Link 
+          to="/" 
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textDecoration: 'none',
+            flex: 1,
+            padding: '6px 0',
+            color: isActive('/') ? '#000' : '#333',
+            fontSize: '0.7rem',
+            fontWeight: isActive('/') ? '600' : '500'
+          }}
+        >
+          <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth={isActive('/') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span>INÍCIO</span>
+        </Link>
+        
+        <Link 
+          to="/buscar" 
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textDecoration: 'none',
+            flex: 1,
+            padding: '6px 0',
+            color: isActive('/buscar') ? '#000' : '#333',
+            fontSize: '0.7rem',
+            fontWeight: isActive('/buscar') ? '600' : '500'
+          }}
+        >
+          <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth={isActive('/buscar') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth={isActive('/buscar') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span>BUSCAR</span>
+        </Link>
+        
+        <Link 
+          to="/eventos" 
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textDecoration: 'none',
+            flex: 1,
+            padding: '6px 0',
+            color: isActive('/eventos') ? '#000' : '#333',
+            fontSize: '0.7rem',
+            fontWeight: isActive('/eventos') ? '600' : '500'
+          }}
+        >
+          <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="currentColor" strokeWidth={isActive('/eventos') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M16 2V4" stroke="currentColor" strokeWidth={isActive('/eventos') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M8 2V4" stroke="currentColor" strokeWidth={isActive('/eventos') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3 10H21" stroke="currentColor" strokeWidth={isActive('/eventos') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9 16L11 18L15 14" stroke="currentColor" strokeWidth={isActive('/eventos') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span>EVENTOS</span>
+        </Link>
+        
+        <Link 
+          to="/perfil" 
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textDecoration: 'none',
+            flex: 1,
+            padding: '6px 0',
+            color: isActive('/perfil') ? '#000' : '#333',
+            fontSize: '0.7rem',
+            fontWeight: isActive('/perfil') ? '600' : '500'
+          }}
+        >
+          <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" strokeWidth={isActive('/perfil') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="currentColor" strokeWidth={isActive('/perfil') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span>PERFIL</span>
+        </Link>
+      </div>
+
+      <style>
+        {`
+          .edit-overlay {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+          }
+          
+          .edit-overlay:hover {
+            opacity: 1;
+          }
+          
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+    </div>
   );
-} 
+}

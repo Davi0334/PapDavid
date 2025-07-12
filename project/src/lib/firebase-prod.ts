@@ -1,75 +1,49 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, browserLocalPersistence, browserSessionPersistence, setPersistence, inMemoryPersistence } from 'firebase/auth';
+import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth';
 import { getFirestore, collection, getDocs, query, limit } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getAnalytics } from 'firebase/analytics';
+import { getAnalytics, Analytics } from 'firebase/analytics';
 
 // Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDYfx7_J2ytajSGVRZp49pgOlbr1hQCXGo",
   authDomain: "servefirst-4d431.firebaseapp.com",
-  databaseURL: "https://servefirst-4d431-default-rtdb.firebaseio.com",
   projectId: "servefirst-4d431",
   storageBucket: "servefirst-4d431.appspot.com",
   messagingSenderId: "202211771576",
-  appId: "1:202211771576:web:ef55e0103774742122204d",
-  measurementId: "G-VDENK2RHN9"
+  appId: "1:202211771576:web:ef55e0103774742122204d"
 };
 
-// Initialize Firebase - check if app already exists
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// Initialize Firebase
+let app;
+try {
+  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  console.log('Firebase initialized successfully');
+} catch (error) {
+  console.error('Error initializing Firebase:', error);
+  throw error;
+}
+
+// Initialize Auth
 export const auth = getAuth(app);
+
+// Set persistence to local
+setPersistence(auth, browserLocalPersistence)
+  .then(() => console.log('Auth persistence set to local'))
+  .catch(error => console.error('Error setting auth persistence:', error));
+
+// Initialize other services
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
-// Configure auth persistence based on environment
-export const configurePersistence = async () => {
+// Initialize Analytics in production only
+export let analytics: Analytics | null = null;
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
   try {
-    // Log current domain for debugging
-    const currentDomain = window.location.hostname;
-    console.log('Current domain:', currentDomain);
-    console.log('Full URL:', window.location.href);
-    
-    // Check if we're in production or development
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                       window.location.hostname === '127.0.0.1' ||
-                       window.location.hostname.includes('192.168.');
-    
-    if (isLocalhost) {
-      // In local development, use local persistence (most permissive)
-      await setPersistence(auth, browserLocalPersistence);
-      console.log('Firebase Auth: Using browser local persistence (development)');
-    } else {
-      // In production, use session persistence (more secure)
-      await setPersistence(auth, browserSessionPersistence);
-      console.log('Firebase Auth: Using browser session persistence (production)');
-      
-      // Alert if domain might not be authorized
-      console.warn('⚠️ If authentication fails, you may need to add this domain to Firebase authorized domains');
-      console.warn('Visit Firebase Console > Authentication > Settings > Authorized domains');
-      console.warn('Add: ' + currentDomain);
-    }
-    
-    return true;
+    analytics = getAnalytics(app);
   } catch (error) {
-    console.error('Error setting auth persistence:', error);
-    
-    // Fallback to in-memory persistence as last resort
-    try {
-      await setPersistence(auth, inMemoryPersistence);
-      console.log('Firebase Auth: Fallback to in-memory persistence');
-      return true;
-    } catch (fallbackError) {
-      console.error('Critical error setting auth persistence:', fallbackError);
-      return false;
-    }
+    console.warn('Analytics initialization failed:', error);
   }
-};
-
-// Call configurePersistence when module loads
-if (typeof window !== 'undefined') {
-  configurePersistence().catch(err => console.error('Failed to initialize auth persistence:', err));
 }
 
 // Simple connection check function

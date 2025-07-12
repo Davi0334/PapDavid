@@ -32,7 +32,7 @@ import {
   getDocs, getDoc, query, where, serverTimestamp, Timestamp,
   collectionGroup
 } from 'firebase/firestore';
-import './simple.css';
+// import './simple.css'; // Comentado para permitir estilos inline futurísticos
 import './styles/mobile-fix.css'; // Importar CSS com correções para layout mobile
 import { db, auth } from './lib/firebase-prod';
 import ReactDOM from 'react-dom/client';
@@ -43,11 +43,13 @@ import { SetAdmin } from './pages/set-admin';
 import { Login } from './pages/login';
 import { Cadastro } from './pages/cadastro';
 import { EsqueciSenha } from './pages/esqueci-senha';
+import { AlterarSenha } from './pages/alterar-senha';
 import { DataServiceProvider } from './lib/data-service';
 import { AuthLayout } from './layouts/auth-layout';
 import { DocumentImporter } from './components/DocumentImporter';
 import mammoth from 'mammoth';
 import { EditarTeatro } from './pages/editar-teatro';
+import { Perfil } from './pages/perfil';
 
 // Estilos CSS para corrigir problemas de scroll horizontal em dispositivos móveis
 export const styleFixScrollHorizontal = `
@@ -560,52 +562,255 @@ function MobileWrapper({ children, title, showBack = true, showBottomNav = true,
   );
 }
 
-// Componente do BottomNav
+// Componente do BottomNav Futurístico
 function BottomNav({ currentPath }: { currentPath: string }) {
-  const isActive = (path: string) => {
-    return currentPath === path;
+  const getActiveRoute = () => {
+    if (currentPath === '/') return 'inicio';
+    if (currentPath.startsWith('/teatro/') || currentPath === '/teatros') return 'inicio';
+    if (currentPath === '/buscar') return 'buscar';
+    if (currentPath === '/eventos' || currentPath.startsWith('/evento/')) return 'eventos';
+    if (currentPath === '/perfil') return 'perfil';
+    return 'inicio';
+  };
+
+  const activeRoute = getActiveRoute();
+
+  const navItems = [
+    { 
+      id: 'inicio', 
+      path: '/', 
+      icon: 'Home', 
+      label: 'INÍCIO',
+      gradient: 'linear-gradient(135deg, #fc6c5f, #ff8a7a)',
+      shadowColor: 'rgba(252, 108, 95, 0.4)'
+    },
+    { 
+      id: 'buscar', 
+      path: '/buscar', 
+      icon: 'Search', 
+      label: 'BUSCAR',
+              gradient: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.6))',
+        shadowColor: 'rgba(255, 255, 255, 0.4)'
+    },
+    { 
+      id: 'eventos', 
+      path: '/eventos', 
+      icon: 'CalendarDays', 
+      label: 'EVENTOS',
+              gradient: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.6))',
+        shadowColor: 'rgba(255, 255, 255, 0.4)'
+    },
+    { 
+      id: 'perfil', 
+      path: '/perfil', 
+      icon: 'User', 
+      label: 'PERFIL',
+              gradient: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.6))',
+        shadowColor: 'rgba(255, 255, 255, 0.4)'
+    }
+  ];
+
+  const getIconSvg = (iconName: string, isActive: boolean) => {
+    const strokeWidth = isActive ? 2.5 : 2;
+    const color = isActive ? '#fc6c5f' : '#6b7280';
+    const fillColor = isActive ? '#fc6c5f' : 'none';
+    
+    switch(iconName) {
+      case 'Home':
+        return (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path 
+              d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
+              stroke={color} 
+              strokeWidth={strokeWidth} 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              fill={isActive ? 'rgba(252, 108, 95, 0.1)' : 'none'}
+            />
+          </svg>
+        );
+      case 'Search':
+        return (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle 
+              cx="11" 
+              cy="11" 
+              r="8" 
+              stroke={color} 
+              strokeWidth={strokeWidth}
+              fill={isActive ? 'rgba(252, 108, 95, 0.1)' : 'none'}
+            />
+            <path 
+              d="M21 21L16.65 16.65" 
+              stroke={color} 
+              strokeWidth={strokeWidth} 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            />
+          </svg>
+        );
+      case 'CalendarDays':
+        return (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <rect 
+              x="3" 
+              y="4" 
+              width="18" 
+              height="18" 
+              rx="2" 
+              ry="2" 
+              stroke={color} 
+              strokeWidth={strokeWidth}
+              fill={isActive ? 'rgba(252, 108, 95, 0.1)' : 'none'}
+            />
+            <line 
+              x1="16" 
+              y1="2" 
+              x2="16" 
+              y2="6" 
+              stroke={color} 
+              strokeWidth={strokeWidth} 
+              strokeLinecap="round"
+            />
+            <line 
+              x1="8" 
+              y1="2" 
+              x2="8" 
+              y2="6" 
+              stroke={color} 
+              strokeWidth={strokeWidth} 
+              strokeLinecap="round"
+            />
+            <line 
+              x1="3" 
+              y1="10" 
+              x2="21" 
+              y2="10" 
+              stroke={color} 
+              strokeWidth={strokeWidth} 
+              strokeLinecap="round"
+            />
+          </svg>
+        );
+      case 'User':
+        return (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path 
+              d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" 
+              stroke={color} 
+              strokeWidth={strokeWidth} 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            />
+            <circle 
+              cx="12" 
+              cy="7" 
+              r="4" 
+              stroke={color} 
+              strokeWidth={strokeWidth} 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              fill={isActive ? 'rgba(252, 108, 95, 0.1)' : 'none'}
+            />
+          </svg>
+        );
+      default:
+        return null;
+    }
   };
   
-  return (
-    <div className="bottom-nav" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', borderTop: '1px solid #eee', zIndex: 50 }}>
-      <Link to="/" className={`bottom-nav-item ${isActive('/') ? 'active' : ''}`}>
-        <div className="nav-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+    return (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      position: 'fixed', 
+      bottom: 0, 
+      left: 0, 
+      right: 0, 
+      backgroundColor: 'white', 
+      padding: '10px 0', 
+      borderTop: '1px solid #e0e0e0', 
+      zIndex: 10, 
+      maxWidth: '430px', 
+      margin: '0 auto', 
+      boxShadow: '0 -2px 10px rgba(0,0,0,0.05)' 
+    }}>
+      <Link 
+        to="/" 
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textDecoration: 'none',
+          flex: 1,
+          padding: '6px 0',
+          color: activeRoute === 'inicio' ? '#fc6c5f' : '#6b7280',
+          fontSize: '0.7rem',
+          fontWeight: activeRoute === 'inicio' ? '600' : '500'
+        }}
+      >
+        <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {getIconSvg('Home', activeRoute === 'inicio')}
         </div>
         <span>INÍCIO</span>
       </Link>
       
-      <Link to="/buscar" className={`bottom-nav-item ${isActive('/buscar') ? 'active' : ''}`}>
-        <div className="nav-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+      <Link 
+        to="/buscar" 
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textDecoration: 'none',
+          flex: 1,
+          padding: '6px 0',
+          color: activeRoute === 'buscar' ? '#fc6c5f' : '#6b7280',
+          fontSize: '0.7rem',
+          fontWeight: activeRoute === 'buscar' ? '600' : '500'
+        }}
+      >
+        <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {getIconSvg('Search', activeRoute === 'buscar')}
         </div>
         <span>BUSCAR</span>
       </Link>
       
-      <Link to="/eventos" className={`bottom-nav-item ${isActive('/eventos') ? 'active' : ''}`}>
-        <div className="nav-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M16 2V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M8 2V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M9 16L11 18L15 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+      <Link 
+        to="/eventos" 
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textDecoration: 'none',
+          flex: 1,
+          padding: '6px 0',
+          color: activeRoute === 'eventos' ? '#fc6c5f' : '#6b7280',
+          fontSize: '0.7rem',
+          fontWeight: activeRoute === 'eventos' ? '600' : '500'
+        }}
+      >
+        <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {getIconSvg('CalendarDays', activeRoute === 'eventos')}
         </div>
         <span>EVENTOS</span>
       </Link>
       
-      <Link to="/perfil" className={`bottom-nav-item ${isActive('/perfil') ? 'active' : ''}`}>
-        <div className="nav-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+      <Link 
+        to="/perfil" 
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textDecoration: 'none',
+          flex: 1,
+          padding: '6px 0',
+          color: activeRoute === 'perfil' ? '#fc6c5f' : '#6b7280',
+          fontSize: '0.7rem',
+          fontWeight: activeRoute === 'perfil' ? '600' : '500'
+        }}
+      >
+        <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {getIconSvg('User', activeRoute === 'perfil')}
         </div>
         <span>PERFIL</span>
       </Link>
@@ -679,110 +884,390 @@ function Home() {
     checkAdminStatus();
   }, [dataService, user]);
   
-  const renderTeatros = () => {
-    if (loading) {
-      return (
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Carregando seus teatros...</p>
-        </div>
-      );
-    }
-    
-    if (error) {
-      return (
-        <div className="error-container">
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()} className="button">
-            Tentar novamente
-          </button>
-        </div>
-      );
-    }
-    
-    if (teatros.length === 0) {
-      return (
-        <div className="empty-state">
-          <p>Você ainda não participa de nenhum teatro.</p>
-          {isAdmin && (
-            <button 
-              onClick={() => navigate('/criar-teatro')} 
-              className="button"
-            >
-              Criar Novo Teatro
-            </button>
-          )}
-        </div>
-      );
-    }
-    
-    return (
-      <div className="theaters-list">
-        {teatros.map(teatro => (
-          <div 
-            key={teatro.id} 
-            className="theater-card"
-            onClick={() => navigate(`/teatro/${teatro.id}`)}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h3 style={{ margin: 0 }}>{teatro.titulo}</h3>
-              {(teatro.temAlerta || (teatro.avisoAtivo && teatro.aviso)) && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    background: 'white',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                    marginLeft: 8,
-                  }}
-                  title="Aviso importante"
-                >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="12" fill="white"/>
-                    <path d="M12 7v5" stroke="#fc2d2d" strokeWidth="2" strokeLinecap="round"/>
-                    <circle cx="12" cy="16" r="1.5" fill="#fc2d2d"/>
-                    <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" fill="#fc2d2d"/>
-                  </svg>
-                </span>
-              )}
-            </div>
-            
-            <p>
-              <strong>Participantes:</strong> {teatro.participantes?.length || 0}
-            </p>
-            
-            <p>
-              <strong>Dias de ensaio:</strong> {teatro.diasEnsaio?.join(', ') || 'Não definido'}
-            </p>
-          </div>
-        ))}
-      </div>
-    );
-  };
-  
   return (
-    <div className="mobile-wrapper">
-      <div className="mobile-header">
-        <h1 className="mobile-title">ServeFirst</h1>
-      </div>
-      
-      <div className="mobile-content">
-        <div className="container">
-          <h2>Meus Teatros</h2>
-          {renderTeatros()}
+    <div style={{ 
+      minHeight: '100vh',
+      background: '#f8f9fa',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
+      <div style={{ 
+        maxWidth: '430px', 
+        margin: '0 auto',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'white'
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '60px 24px 32px',
+          textAlign: 'center',
+          background: 'linear-gradient(135deg, #fc6c5f 0%, #ff8a65 100%)',
+          color: 'white'
+        }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            background: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '16px',
+            margin: '0 auto 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <span style={{
+              fontSize: '24px',
+              fontWeight: 'bold',
+              color: 'white'
+            }}>S</span>
+          </div>
           
-          {isAdmin && (
-            <button 
-              className="floating-button"
-              onClick={() => navigate('/criar-teatro')}
-            >
-              +
-            </button>
-          )}
+          <h1 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            margin: '0 0 8px'
+          }}>
+            ServeFirst
+          </h1>
+          
+          <p style={{
+            fontSize: '16px',
+            opacity: 0.9,
+            margin: 0,
+            fontWeight: '400'
+          }}>
+            Gestão Teatral Profissional
+          </p>
+        </div>
+
+        {/* Content */}
+        <div style={{ 
+          flex: 1,
+          padding: '32px 24px 100px'
+        }}>
+          {/* Quick Actions */}
+          <div style={{
+            marginBottom: '32px'
+          }}>
+            <h2 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 20px'
+            }}>
+              Acesso Rápido
+            </h2>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '16px'
+            }}>
+              <button 
+                onClick={() => navigate('/eventos')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  padding: '24px 16px',
+                  background: 'white',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+                }}
+              >
+                <div style={{ 
+                  fontSize: '32px', 
+                  marginBottom: '12px',
+                  opacity: 0.8
+                }}>📅</div>
+                <span style={{ 
+                  fontSize: '14px', 
+                  fontWeight: '500',
+                  textAlign: 'center',
+                  color: '#333'
+                }}>
+                  Eventos
+                </span>
+              </button>
+
+              <button 
+                onClick={() => navigate('/buscar')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  padding: '24px 16px',
+                  background: 'white',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+                }}
+              >
+                <div style={{ 
+                  fontSize: '32px', 
+                  marginBottom: '12px',
+                  opacity: 0.8
+                }}>🔍</div>
+                <span style={{ 
+                  fontSize: '14px', 
+                  fontWeight: '500',
+                  textAlign: 'center',
+                  color: '#333'
+                }}>
+                  Buscar
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Meus Teatros */}
+          <div style={{
+            marginBottom: '32px'
+          }}>
+            <h2 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 20px'
+            }}>
+              Meus Teatros
+            </h2>
+            
+            {loading ? (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                padding: '40px 0',
+                color: '#666'
+              }}>
+                Carregando teatros...
+              </div>
+            ) : error ? (
+              <div style={{
+                padding: '24px',
+                background: '#fee',
+                borderRadius: '8px',
+                border: '1px solid #fcc',
+                textAlign: 'center'
+              }}>
+                <p style={{ color: '#c33', margin: '0 0 16px' }}>{error}</p>
+                <button 
+                  onClick={() => window.location.reload()}
+                  style={{
+                    background: '#fc6c5f',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : teatros.length === 0 ? (
+              <div style={{
+                padding: '40px 24px',
+                background: '#f8f9fa',
+                borderRadius: '12px',
+                textAlign: 'center',
+                border: '1px solid #e5e7eb'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎭</div>
+                <h3 style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#333',
+                  margin: '0 0 8px'
+                }}>
+                  Nenhum teatro ainda
+                </h3>
+                <p style={{
+                  color: '#666',
+                  margin: '0 0 20px',
+                  fontSize: '14px'
+                }}>
+                  Você ainda não participa de nenhum teatro. {isAdmin ? 'Crie um novo projeto ou ' : ''}Entre em um teatro para começar!
+                </p>
+                {isAdmin && (
+                  <button 
+                    onClick={() => navigate('/criar-teatro')}
+                    style={{
+                      background: '#fc6c5f',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '12px 24px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Criar Novo Teatro
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                {teatros.map((teatro) => (
+                  <div 
+                    key={teatro.id}
+                    onClick={() => navigate(`/teatro/${teatro.id}`)}
+                    style={{
+                      padding: '16px',
+                      background: 'white',
+                      borderRadius: '12px',
+                      border: '1px solid #e5e7eb',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      marginBottom: '8px'
+                    }}>
+                      <h3 style={{
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#333',
+                        margin: 0,
+                        flex: 1
+                      }}>
+                        {teatro.titulo}
+                      </h3>
+                      {(teatro.temAlerta || (teatro.avisoAtivo && teatro.aviso)) && (
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(45deg, #fc6c5f, #ff8a80)',
+                          marginLeft: '8px',
+                          marginTop: '4px'
+                        }} />
+                      )}
+                    </div>
+                    
+                    <div style={{
+                      display: 'flex',
+                      gap: '16px',
+                      fontSize: '12px',
+                      color: '#666'
+                    }}>
+                      <span>👥 {teatro.participantes?.length || 0} pessoas</span>
+                      <span>📅 {teatro.diasEnsaio?.join(', ') || 'Não definido'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Stats */}
+          <div style={{
+            background: '#f8f9fa',
+            borderRadius: '12px',
+            padding: '24px',
+            border: '1px solid #e5e7eb'
+          }}>
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 16px'
+            }}>
+              Resumo
+            </h3>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '16px'
+            }}>
+              <div style={{
+                textAlign: 'center',
+                padding: '16px',
+                background: 'white',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb'
+              }}>
+                <div style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: '#fc6c5f',
+                  marginBottom: '4px'
+                }}>
+                  {loading ? '-' : teatros.length}
+                </div>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#666',
+                  fontWeight: '500'
+                }}>
+                  Teatros Ativos
+                </div>
+              </div>
+              
+              <div style={{
+                textAlign: 'center',
+                padding: '16px',
+                background: 'white',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb'
+              }}>
+                <div style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: '#fc6c5f',
+                  marginBottom: '4px'
+                }}>
+                  0
+                </div>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#666',
+                  fontWeight: '500'
+                }}>
+                  Eventos Agendados
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -810,7 +1295,7 @@ function TeatroDetalhes() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('principal');
   const dataService = useDataService();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [isCreator, setIsCreator] = useState(false);
   const [liderNome, setLiderNome] = useState('');
   const [isParticipating, setIsParticipating] = useState(false);
@@ -961,25 +1446,29 @@ function TeatroDetalhes() {
     }
   };
   
-  const compartilharTeatro = () => {
+  const compartilharTeatro = async () => {
     if (!teatro || !teatro.id) return;
-    
     try {
-      // Garantir que estamos copiando o ID do teatro e não o título
-      navigator.clipboard.writeText(teatro.id);
-      
-      // Mostrar um alerta mais informativo
+      await navigator.clipboard.writeText(teatro.id);
       alert(`ID "${teatro.id}" copiado para a área de transferência! Compartilhe este ID com outros participantes para que eles possam acessar este teatro.`);
-      
-      console.log('ID compartilhado:', teatro.id); // Log para debug
+      console.log('ID compartilhado:', teatro.id);
     } catch (err) {
-      console.error('Erro ao copiar ID:', err);
-      
-      // Mostrar o ID mesmo que não consiga copiar para a área de transferência
-      alert(`ID do teatro: ${teatro.id}\nAnote este ID para compartilhar com outros participantes.`);
+      // Fallback manual
+      try {
+        const tempInput = document.createElement('input');
+        tempInput.value = teatro.id;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        alert(`ID "${teatro.id}" copiado para a área de transferência!`);
+      } catch (fallbackErr) {
+        console.error('Erro ao copiar ID:');
+        alert(`ID do teatro: ${teatro.id}\nNão foi possível copiar automaticamente. Por favor, copie manualmente.`);
+      }
     }
   };
-  
+    
   // Adicionar função para entrar no teatro
   const entrarNoTeatro = async () => {
     if (!user || !teatro) return;
@@ -1112,26 +1601,66 @@ function TeatroDetalhes() {
   
   if (loading) {
     return (
-      <div className="mobile-wrapper">
-        <div className="mobile-header">
-          <button className="back-button" onClick={() => navigate(-1)}>
+      <div style={{ 
+        minHeight: '100vh',
+        backgroundColor: '#f8f9fa',
+        paddingBottom: '120px'
+      }}>
+        <div style={{ 
+          position: 'sticky',
+          top: 0,
+          backgroundColor: 'white',
+          borderBottom: '1px solid #e5e7eb',
+          zIndex: 2000,
+          padding: '16px 20px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <button 
+            onClick={() => navigate(-1)}
+            style={{
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              color: '#374151'
+            }}
+          >
             ←
           </button>
-          <h1 className="mobile-header-title">Detalhes</h1>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: '20px', 
+            fontWeight: '600',
+            color: '#1f2937'
+          }}>
+            Carregando...
+          </h1>
         </div>
-        <div className="mobile-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div className="spinner" style={{
-              width: '40px',
-              height: '40px',
-              border: '4px solid #f3f3f3',
-              borderTop: '4px solid #fc6c5f',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 20px'
-            }}></div>
-            <p>Carregando informações do teatro...</p>
-          </div>
+        
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '70vh',
+          flexDirection: 'column',
+          gap: '16px'
+        }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '4px solid #e5e7eb',
+            borderTop: '4px solid #fc6c5f',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <p style={{ color: '#6b7280', fontSize: '16px' }}>
+            Carregando informações do teatro...
+          </p>
         </div>
       </div>
     );
@@ -1139,34 +1668,80 @@ function TeatroDetalhes() {
   
   if (error) {
     return (
-      <div className="mobile-wrapper">
-        <div className="mobile-header">
-          <button className="back-button" onClick={() => navigate(-1)}>
+      <div style={{ 
+        minHeight: '100vh',
+        backgroundColor: '#f8f9fa',
+        paddingBottom: '120px'
+      }}>
+        <div style={{ 
+          position: 'sticky',
+          top: 0,
+          backgroundColor: 'white',
+          borderBottom: '1px solid #e5e7eb',
+          zIndex: 2000,
+          padding: '16px 20px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <button 
+            onClick={() => navigate(-1)}
+            style={{
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              color: '#374151'
+            }}
+          >
             ←
           </button>
-          <h1 className="mobile-header-title">Erro</h1>
-        </div>
-        <div className="mobile-content" style={{ padding: '20px', textAlign: 'center' }}>
-          <div style={{ 
-            backgroundColor: '#ffeeee', 
-            padding: '20px', 
-            borderRadius: '8px',
-            marginTop: '20px'
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: '20px', 
+            fontWeight: '600',
+            color: '#1f2937'
           }}>
-            <p style={{ color: '#cc0000', fontWeight: 'bold' }}>{error}</p>
+            Erro
+          </h1>
+        </div>
+        
+        <div style={{ padding: '24px 20px', textAlign: 'center' }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            border: '1px solid #e5e7eb',
+            padding: '32px 24px'
+          }}>
+            <div style={{
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderLeft: '4px solid #ef4444',
+              color: '#dc2626',
+              padding: '16px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              marginBottom: '24px'
+            }}>
+              {error}
+            </div>
             <button 
-              onClick={() => navigate('/teatros')}
+              onClick={() => navigate(-1)}
               style={{
-                backgroundColor: '#041e42',
+                backgroundColor: '#fc6c5f',
                 color: 'white',
-                padding: '10px 20px',
-                borderRadius: '8px',
                 border: 'none',
-                marginTop: '15px',
+                borderRadius: '6px',
+                padding: '12px 24px',
+                fontSize: '14px',
+                fontWeight: '500',
                 cursor: 'pointer'
               }}
             >
-              Voltar para Teatros
+              Voltar
             </button>
           </div>
         </div>
@@ -1176,557 +1751,814 @@ function TeatroDetalhes() {
   
   if (!teatro) {
     return (
-      <div className="mobile-wrapper">
-        <div className="mobile-header">
-          <button className="back-button" onClick={() => navigate(-1)}>
+      <div style={{ 
+        minHeight: '100vh',
+        backgroundColor: '#f8f9fa',
+        paddingBottom: '120px'
+      }}>
+        <div style={{ 
+          position: 'sticky',
+          top: 0,
+          backgroundColor: 'white',
+          borderBottom: '1px solid #e5e7eb',
+          zIndex: 2000,
+          padding: '16px 20px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <button 
+            onClick={() => navigate(-1)}
+            style={{
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              color: '#374151'
+            }}
+          >
             ←
           </button>
-          <h1 className="mobile-header-title">Detalhes</h1>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: '20px', 
+            fontWeight: '600',
+            color: '#1f2937'
+          }}>
+            Teatro
+          </h1>
         </div>
-        <div className="mobile-content" style={{ padding: '20px', textAlign: 'center' }}>
-          <p>Nenhuma informação disponível para este teatro.</p>
+        
+        <div style={{ padding: '24px 20px', textAlign: 'center' }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            border: '1px solid #e5e7eb',
+            padding: '32px 24px'
+          }}>
+            <p style={{ color: '#6b7280', margin: 0 }}>
+              Nenhuma informação disponível para este teatro.
+            </p>
+          </div>
         </div>
       </div>
     );
   }
   
   return (
-    <div className="mobile-wrapper">
-      <div className="mobile-header">
-        <button className="back-button" onClick={() => navigate(-1)}>
+    <div style={{ 
+      minHeight: '100vh',
+      backgroundColor: '#f8f9fa',
+      paddingBottom: '120px'
+    }}>
+      {/* Header */}
+      <div style={{ 
+        position: 'sticky',
+        top: 0,
+        backgroundColor: 'white',
+        borderBottom: '1px solid #e5e7eb',
+        zIndex: 2000,
+        padding: '16px 20px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+      }}>
+        <button 
+          onClick={() => navigate(-1)}
+          style={{
+            backgroundColor: '#f9fafb',
+            border: '1px solid #e5e7eb',
+            borderRadius: '6px',
+            padding: '8px 12px',
+            cursor: 'pointer',
+            fontSize: '16px',
+            color: '#374151'
+          }}
+        >
           ←
         </button>
-        <h1 className="mobile-header-title">{teatro.titulo}</h1>
-      </div>
-      
-      <div className="mobile-content">
-        <div className="container">
-          {/* Abas para navegação */}
-          <div style={{ 
-            display: 'flex', 
-            borderBottom: '1px solid #eee',
-            marginBottom: '15px'
+        <div style={{ flex: 1 }}>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: '20px', 
+            fontWeight: '600',
+            color: '#1f2937',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
           }}>
-            <div 
-              onClick={() => setActiveTab('principal')} 
-              style={{ 
-                flex: 1, 
-                textAlign: 'center', 
-                padding: '10px', 
-                borderBottom: activeTab === 'principal' ? '2px solid #fc6c5f' : 'none',
-                fontWeight: activeTab === 'principal' ? 'bold' : 'normal',
-                cursor: 'pointer'
-              }}
-            >
-              Principal
-            </div>
-            <div 
-              onClick={navegarParaRoteiro} 
-              style={{ 
-                flex: 1, 
-                textAlign: 'center', 
-                padding: '10px',
-                borderBottom: activeTab === 'roteiro' ? '2px solid #fc6c5f' : 'none',
-                fontWeight: activeTab === 'roteiro' ? 'bold' : 'normal',
-                cursor: 'pointer'
-              }}
-            >
-              Roteiro
-            </div>
-            <div 
-              onClick={navegarParaCenario} 
-              style={{ 
-                flex: 1, 
-                textAlign: 'center', 
-                padding: '10px',
-                borderBottom: activeTab === 'cenario' ? '2px solid #fc6c5f' : 'none',
-                fontWeight: activeTab === 'cenario' ? 'bold' : 'normal',
-                cursor: 'pointer'
-              }}
-            >
-              Cenário
-            </div>
-            <div 
-              onClick={navegarParaFigurino} 
-              style={{ 
-                flex: 1, 
-                textAlign: 'center', 
-                padding: '10px',
-                borderBottom: activeTab === 'figurino' ? '2px solid #fc6c5f' : 'none',
-                fontWeight: activeTab === 'figurino' ? 'bold' : 'normal',
-                cursor: 'pointer'
-              }}
-            >
-              Figurino
-            </div>
-            <div 
-              onClick={navegarParaParticipantes} 
-              style={{ 
-                flex: 1, 
-                textAlign: 'center', 
-                padding: '10px',
-                borderBottom: activeTab === 'participantes' ? '2px solid #fc6c5f' : 'none',
-                fontWeight: activeTab === 'participantes' ? 'bold' : 'normal',
-                cursor: 'pointer'
-              }}
-            >
-              Equipe
-            </div>
+            {teatro.titulo}
+          </h1>
+          <div style={{
+            fontSize: '12px',
+            color: '#6b7280',
+            fontWeight: '500'
+          }}>
+            Teatro • {formatDate(teatro.dataApresentacao)}
           </div>
-          
-          {/* Apenas mostrar o aviso real se estiver ativo */}
-          {teatro.avisoAtivo && teatro.aviso && (
-            <div style={{ 
-              backgroundColor: '#fff3cd', 
-              border: '1px solid #ffeeba', 
-              padding: '15px', 
-              marginBottom: '15px',
-              borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-            }}>
-              <h3 style={{ 
-                color: '#856404', 
-                marginBottom: '8px', 
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                fontSize: '16px'
-              }}>
-                <span style={{ marginRight: '8px' }}>⚠️</span>
-                Aviso
-              </h3>
-              <p style={{ wordBreak: 'break-word', margin: '0', lineHeight: '1.4' }}>
-                {teatro.aviso}
-              </p>
-            </div>
-          )}
-          
-          {/* Alertas temAlerta - Condicionais */}
-          {teatro.temAlerta && (
-            <div style={{ 
-              backgroundColor: '#fff8e1', 
-              padding: '15px', 
-              borderRadius: '8px',
-              marginBottom: '15px',
-              border: '1px solid #ffe082'
-            }}>
-              <p style={{ color: '#ff8f00', margin: 0 }}>
-                <span style={{ marginRight: '8px' }}>⚠️</span>
-                {teatro.mensagemAlerta || 'Este teatro possui um alerta importante!'}
-              </p>
-            </div>
-          )}
-          
-          {/* Conteúdo das abas */}
-          {activeTab === 'principal' && (
-            <>
-              {/* Informações básicas */}
-              <div style={{ 
-                backgroundColor: '#f9f9f9', 
-                padding: '15px', 
-                borderRadius: '8px',
-                marginBottom: '15px'
-              }}>
-                <h3 style={{ margin: '0 0 10px 0' }}>Informações Gerais</h3>
-                <p><strong>ID:</strong> {teatro.id}</p>
-                <p><strong>Data de Apresentação:</strong> {formatDate(teatro.dataApresentacao)}</p>
-                <p><strong>Local:</strong> {teatro.local || 'Não definido'}</p>
-                <p><strong>Dias de Ensaio:</strong> {teatro.diasEnsaio?.join(', ') || 'Não definidos'}</p>
-                <p><strong>Criado por:</strong> {liderNome}</p>
-                {teatro.descricao && (
-                  <div>
-                    <p><strong>Descrição:</strong></p>
-                    <p style={{ margin: '5px 0 0 0' }}>{teatro.descricao}</p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Estatísticas */}
-              <div style={{ 
-                backgroundColor: '#f9f9f9', 
-                padding: '15px', 
-                borderRadius: '8px',
-                marginBottom: '15px'
-              }}>
-                <h3 style={{ margin: '0 0 10px 0' }}>Estatísticas</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1 0 50%', marginBottom: '10px' }}>
-                    <p style={{ margin: '0' }}><strong>Quantidade de Cenas:</strong></p>
-                    <p style={{ margin: '0', fontSize: '20px', color: '#fc6c5f' }}>{teatro.quantidadeCenas || '0'}</p>
-                  </div>
-                  <div style={{ flex: '1 0 50%', marginBottom: '10px' }}>
-                    <p style={{ margin: '0' }}><strong>Número de Atos:</strong></p>
-                    <p style={{ margin: '0', fontSize: '20px', color: '#fc6c5f' }}>{teatro.numeroAtos || '0'}</p>
-                  </div>
-                  <div style={{ flex: '1 0 50%', marginBottom: '10px' }}>
-                    <p style={{ margin: '0' }}><strong>Quantidade de Atores:</strong></p>
-                    <p style={{ margin: '0', fontSize: '20px', color: '#fc6c5f' }}>{teatro.quantidadeAtores || '0'}</p>
-                  </div>
-                  <div style={{ flex: '1 0 50%', marginBottom: '10px' }}>
-                    <p style={{ margin: '0' }}><strong>Participantes:</strong></p>
-                    <p style={{ margin: '0', fontSize: '20px', color: '#fc6c5f' }}>{teatro.participantes?.length || '0'}</p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Ações */}
-              <div style={{ marginTop: '20px' }}>
-                <button 
-                  onClick={compartilharTeatro}
-                  style={{
-                    backgroundColor: '#041e42',
-                    color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '8px',
-                    border: 'none',
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    marginBottom: '10px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Compartilhar ID
-                </button>
-                
-                {isCreator && (
-                  <button 
-                    onClick={() => navigate(`/editar-teatro/${teatro.id}`)}
-                    style={{
-                      backgroundColor: '#fc6c5f',
-                      color: 'white',
-                      padding: '12px 0',
-                      borderRadius: '8px',
-                      border: 'none',
-                      width: '100%',
-                      fontSize: '16px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Editar Teatro
-                  </button>
-                )}
-                
-                {user && !isCreator && !isParticipating && (
-                  <button 
-                    onClick={entrarNoTeatro}
-                    style={{
-                      backgroundColor: '#3e8e41', // Verde
-                      color: 'white',
-                      padding: '12px 0',
-                      borderRadius: '8px',
-                      border: 'none',
-                      width: '100%',
-                      fontSize: '16px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      marginTop: isCreator ? '10px' : '0'
-                    }}
-                  >
-                    Participar deste Teatro
-                  </button>
-                )}
-                
-                {user && !isCreator && isParticipating && (
-                  <div style={{
-                    backgroundColor: '#f0f8ff', // Azul claro
-                    color: '#0066cc',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: '1px solid #cce5ff',
-                    width: '100%',
-                    textAlign: 'center',
-                    fontSize: '16px',
-                    marginTop: '10px'
-                  }}>
-                    Você é participante deste teatro
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-          
-          {/* Aba de Roteiro */}
-          {activeTab === 'roteiro' && (
-            <div style={{ 
-              backgroundColor: '#f9f9f9', 
-              padding: '15px', 
-              borderRadius: '8px',
-              marginBottom: '15px'
-            }}>
-              <h3 style={{ margin: '0 0 10px 0' }}>Roteiro</h3>
-              <p><strong>Número de Atos:</strong> {teatro.numeroAtos || '0'}</p>
-              
-              {teatro.roteiro ? (
-                <div style={{ 
-                  backgroundColor: 'white', 
-                  padding: '15px', 
-                  borderRadius: '8px',
-                  border: '1px solid #eee',
-                  marginTop: '10px',
-                  whiteSpace: 'pre-wrap'
-                }}>
-                  {teatro.roteiro}
-                </div>
-              ) : (
-                <p>Nenhum roteiro definido para este teatro.</p>
-              )}
-            </div>
-          )}
-          
-          {/* Aba de Cenário */}
-          {activeTab === 'cenario' && (
-            <div style={{ 
-              backgroundColor: '#f9f9f9', 
-              padding: '15px', 
-              borderRadius: '8px',
-              marginBottom: '15px'
-            }}>
-              <h3 style={{ margin: '0 0 10px 0' }}>Cenário</h3>
-              <p><strong>Quantidade de Cenas:</strong> {teatro.quantidadeCenas || '0'}</p>
-              
-              {teatro.cenario ? (
-                <div style={{ 
-                  backgroundColor: 'white', 
-                  padding: '15px', 
-                  borderRadius: '8px',
-                  border: '1px solid #eee',
-                  marginTop: '10px',
-                  whiteSpace: 'pre-wrap'
-                }}>
-                  {teatro.cenario}
-                </div>
-              ) : (
-                <p>Nenhum cenário definido para este teatro.</p>
-              )}
-              
-              {teatro.ordemCenarios && (
-                <div style={{ marginTop: '15px' }}>
-                  <h4>Ordem dos Cenários</h4>
-                  <div style={{ 
-                    backgroundColor: 'white', 
-                    padding: '15px', 
-                    borderRadius: '8px',
-                    border: '1px solid #eee'
-                  }}>
-                    {teatro.ordemCenarios}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Aba de Figurino */}
-          {activeTab === 'figurino' && (
-            <div style={{ 
-              backgroundColor: '#f9f9f9', 
-              padding: '15px', 
-              borderRadius: '8px',
-              marginBottom: '15px'
-            }}>
-              <h3 style={{ margin: '0 0 10px 0' }}>Figurino</h3>
-              <p><strong>Quantidade de Atores:</strong> {teatro.quantidadeAtores || '0'}</p>
-              
-              {teatro.figurino ? (
-                <div style={{ 
-                  backgroundColor: 'white', 
-                  padding: '15px', 
-                  borderRadius: '8px',
-                  border: '1px solid #eee',
-                  marginTop: '10px',
-                  whiteSpace: 'pre-wrap'
-                }}>
-                  {teatro.figurino}
-                </div>
-              ) : (
-                <p>Nenhum figurino definido para este teatro.</p>
-              )}
-              
-              {teatro.temaFigurinos && (
-                <div style={{ marginTop: '15px' }}>
-                  <h4>Tema dos Figurinos</h4>
-                  <div style={{ 
-                    backgroundColor: 'white', 
-                    padding: '15px', 
-                    borderRadius: '8px',
-                    border: '1px solid #eee'
-                  }}>
-                    {teatro.temaFigurinos}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Aba de Participantes */}
-          {activeTab === 'participantes' && (
-            <div style={{ 
-              backgroundColor: '#f9f9f9', 
-              padding: '15px', 
-              borderRadius: '8px',
-              marginBottom: '15px'
-            }}>
-              <h3 style={{ margin: '0 0 10px 0' }}>Participantes</h3>
-              
-              {/* Convite para adicionar participantes - visível apenas para o criador */}
-              {isCreator && (
-                <div style={{ 
-                  backgroundColor: 'white', 
-                  padding: '15px', 
-                  borderRadius: '8px',
-                  border: '1px solid #eee',
-                  marginBottom: '15px'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0' }}>Adicionar Participante</h4>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <input
-                      type="email"
-                      placeholder="Email do participante"
-                      value={emailConvite}
-                      onChange={(e) => setEmailConvite(e.target.value)}
-                      style={{
-                        flex: 1,
-                        padding: '10px',
-                        borderRadius: '4px',
-                        border: '1px solid #ccc'
-                      }}
-                    />
-                    <button
-                      onClick={handleConvidarParticipante}
-                      disabled={saving}
-                      style={{
-                        backgroundColor: '#041e42',
-                        color: 'white',
-                        padding: '10px 15px',
-                        borderRadius: '4px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      {saving ? 'Enviando...' : 'Convidar'}
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Lista de participantes */}
-              {showParticipantsLoading ? (
-                <div style={{ textAlign: 'center', padding: '20px' }}>
-                  <div className="spinner" style={{
-                    width: '30px',
-                    height: '30px',
-                    border: '3px solid #f3f3f3',
-                    borderTop: '3px solid #fc6c5f',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
-                    margin: '0 auto 10px'
-                  }}></div>
-                  <p>Carregando participantes...</p>
-                </div>
-              ) : (
-                <div>
-                  {participantesInfo.length > 0 ? (
-                    <div>
-                      {participantesInfo.map((participante) => (
-                        <div key={participante.id} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          padding: '10px',
-                          backgroundColor: 'white',
-                          borderRadius: '8px',
-                          marginBottom: '8px',
-                          border: '1px solid #eee'
-                        }}>
-                          {/* Avatar do participante */}
-                          <div style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            backgroundColor: '#e1e1e1',
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            marginRight: '10px',
-                            overflow: 'hidden'
-                          }}>
-                            {participante.fotoPerfil ? (
-                              <img 
-                                src={participante.fotoPerfil} 
-                                alt="Avatar" 
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              />
-                            ) : (
-                              <span style={{ fontWeight: 'bold' }}>
-                                {participante.nome.charAt(0).toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                          
-                          {/* Informações do participante */}
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 'bold' }}>
-                              {participante.nome}
-                              {participante.id === teatro.criador && (
-                                <span style={{ 
-                                  backgroundColor: '#fc6c5f', 
-                                  color: 'white',
-                                  fontSize: '12px',
-                                  padding: '2px 6px',
-                                  borderRadius: '10px',
-                                  marginLeft: '8px'
-                                }}>
-                                  Lider
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#666' }}>
-                              {participante.email}
-                            </div>
-                          </div>
-                          
-                          {/* Botão de remover - visível apenas para o criador e não para o próprio criador */}
-                          {isCreator && participante.id !== user?.uid && (
-                            <button
-                              onClick={() => handleRemoveParticipante(participante.id)}
-                              style={{
-                                backgroundColor: 'transparent',
-                                color: '#cc0000',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                padding: '5px'
-                              }}
-                            >
-                              Remover
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ 
-                      textAlign: 'center', 
-                      padding: '20px',
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      marginTop: '10px' 
-                    }}>
-                      <p>Nenhum participante encontrado.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
       
-      <BottomNav currentPath="/buscar" />
+      {/* Content */}
+      <div style={{ padding: '20px' }}>
+        {/* Navigation Tabs */}
+        <div style={{ 
+          backgroundColor: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          overflow: 'hidden',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{ display: 'flex' }}>
+            {[
+              { key: 'principal', label: 'Principal', icon: '🏠' },
+              { key: 'roteiro', label: 'Roteiro', icon: '📜' },
+              { key: 'cenario', label: 'Cenário', icon: '🎭' },
+              { key: 'figurino', label: 'Figurino', icon: '👔' },
+              { key: 'participantes', label: 'Equipe', icon: '👥' }
+            ].map((tab) => (
+              <div 
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)} 
+                style={{ 
+                  flex: 1, 
+                  textAlign: 'center', 
+                  padding: '12px 8px', 
+                  backgroundColor: activeTab === tab.key ? '#fc6c5f' : 'white',
+                  color: activeTab === tab.key ? 'white' : '#6b7280',
+                  fontSize: '12px',
+                  fontWeight: activeTab === tab.key ? '600' : '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  borderBottom: activeTab === tab.key ? '3px solid #fc6c5f' : '3px solid transparent'
+                }}
+              >
+                <div style={{ marginBottom: '4px', fontSize: '16px' }}>{tab.icon}</div>
+                <div>{tab.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Avisos */}
+        {teatro.avisoAtivo && teatro.aviso && (
+          <div style={{ 
+            backgroundColor: '#fef3c7',
+            border: '1px solid #fbbf24',
+            borderLeft: '4px solid #f59e0b',
+            padding: '16px', 
+            marginBottom: '20px',
+            borderRadius: '8px'
+          }}>
+            <h3 style={{ 
+              color: '#92400e', 
+              marginBottom: '8px', 
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: '16px'
+            }}>
+              <span style={{ marginRight: '8px', fontSize: '16px' }}>⚠️</span>
+              Aviso Importante
+            </h3>
+            <p style={{ 
+              color: '#92400e', 
+              wordBreak: 'break-word', 
+              margin: '0', 
+              lineHeight: '1.5',
+              fontSize: '14px'
+            }}>
+              {teatro.aviso}
+            </p>
+          </div>
+        )}
+        
+        {/* Alertas */}
+        {teatro.temAlerta && (
+          <div style={{ 
+            backgroundColor: '#fee2e2',
+            border: '1px solid #fca5a5',
+            borderLeft: '4px solid #ef4444',
+            padding: '16px',
+            borderRadius: '8px',
+            marginBottom: '20px'
+          }}>
+            <p style={{ 
+              color: '#991b1b', 
+              margin: 0, 
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}>
+              <span style={{ marginRight: '8px', fontSize: '16px' }}>🚨</span>
+              {teatro.mensagemAlerta || 'Este teatro possui um alerta importante!'}
+            </p>
+          </div>
+        )}
+          
+        {/* Content Sections */}
+        {activeTab === 'principal' && (
+          <div>
+            {/* Basic Information */}
+            <div style={{ 
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              padding: '24px', 
+              borderRadius: '8px',
+              marginBottom: '20px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+            }}>
+              <h3 style={{ 
+                margin: '0 0 20px 0', 
+                color: '#1f2937',
+                fontSize: '18px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                <span style={{ marginRight: '10px' }}>📋</span>
+                Informações Gerais
+              </h3>
+              
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <div style={{ 
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '6px',
+                  padding: '16px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <p style={{ margin: '0', color: '#6b7280', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+                    ID do Teatro
+                  </p>
+                  <p style={{ margin: '0', color: '#1f2937', fontWeight: '600', wordBreak: 'break-all', fontSize: '14px' }}>
+                    {teatro.id}
+                  </p>
+                </div>
+                
+                <div style={{ 
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '6px',
+                  padding: '16px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <p style={{ margin: '0', color: '#6b7280', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+                    Data de Apresentação
+                  </p>
+                  <p style={{ margin: '0', color: '#1f2937', fontWeight: '600', fontSize: '14px' }}>
+                    {formatDate(teatro.dataApresentacao)}
+                  </p>
+                </div>
+                
+                <div style={{ 
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '6px',
+                  padding: '16px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <p style={{ margin: '0', color: '#6b7280', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+                    Local
+                  </p>
+                  <p style={{ margin: '0', color: '#1f2937', fontWeight: '600', fontSize: '14px' }}>
+                    {teatro.local || 'Não definido'}
+                  </p>
+                </div>
+                
+                <div style={{ 
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '6px',
+                  padding: '16px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <p style={{ margin: '0', color: '#6b7280', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+                    Dias de Ensaio
+                  </p>
+                  <p style={{ margin: '0', color: '#1f2937', fontWeight: '600', fontSize: '14px' }}>
+                    {teatro.diasEnsaio?.join(', ') || 'Não definidos'}
+                  </p>
+                </div>
+                
+                {teatro.descricao && (
+                  <div style={{ 
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '6px',
+                    padding: '16px',
+                    border: '1px solid #e5e7eb'
+                  }}>
+                    <p style={{ margin: '0', color: '#6b7280', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+                      Descrição
+                    </p>
+                    <p style={{ margin: '0', color: '#1f2937', fontWeight: '500', lineHeight: '1.5', fontSize: '14px' }}>
+                      {teatro.descricao}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Statistics */}
+            <div style={{ 
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              padding: '24px', 
+              borderRadius: '8px',
+              marginBottom: '20px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+            }}>
+              <h3 style={{ 
+                margin: '0 0 20px 0', 
+                color: '#1f2937',
+                fontSize: '18px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                <span style={{ marginRight: '10px' }}>📊</span>
+                Estatísticas
+              </h3>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ 
+                  backgroundColor: '#fef3c7',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  border: '1px solid #fbbf24',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: '#d97706', marginBottom: '8px' }}>
+                    {teatro.quantidadeCenas || '0'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#92400e', fontWeight: '500' }}>
+                    Cenas
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  backgroundColor: '#dbeafe',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  border: '1px solid #3b82f6',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: '#1d4ed8', marginBottom: '8px' }}>
+                    {teatro.numeroAtos || '0'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#1e40af', fontWeight: '500' }}>
+                    Atos
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  backgroundColor: '#f3e8ff',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  border: '1px solid #8b5cf6',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: '#7c3aed', marginBottom: '8px' }}>
+                    {teatro.quantidadeAtores || '0'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6b46c1', fontWeight: '500' }}>
+                    Atores
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  backgroundColor: '#fef2f2',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  border: '1px solid #fc6c5f',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: '#fc6c5f', marginBottom: '8px' }}>
+                    {teatro.participantes?.length || '0'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
+                    Participantes
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Actions */}
+            <div style={{ display: 'grid', gap: '12px' }}>
+              <button 
+                onClick={compartilharTeatro}
+                style={{
+                  backgroundColor: '#f3f4f6',
+                  color: '#374151',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>📋</span>
+                Compartilhar ID
+              </button>
+              
+              {isCreator && (
+                <button 
+                  onClick={() => navigate(`/editar-teatro/${teatro.id}`)}
+                  style={{
+                    backgroundColor: '#fc6c5f',
+                    color: 'white',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <span>✏️</span>
+                  Editar Teatro
+                </button>
+              )}
+              
+              {user && !isCreator && !isParticipating && (
+                <button 
+                  onClick={entrarNoTeatro}
+                  style={{
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <span>🎭</span>
+                  Participar deste Teatro
+                </button>
+              )}
+              
+              {user && !isCreator && isParticipating && (
+                <div style={{
+                  backgroundColor: '#dcfce7',
+                  color: '#166534',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  border: '1px solid #16a34a',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}>
+                  <span>✅</span>
+                  Você é participante deste teatro
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Script Tab */}
+        {activeTab === 'roteiro' && (
+          <div style={{ 
+            backgroundColor: 'white',
+            border: '1px solid #e5e7eb',
+            padding: '24px', 
+            borderRadius: '8px',
+            marginBottom: '20px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ 
+              margin: '0 0 20px 0', 
+              color: '#1f2937',
+              fontSize: '18px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <span style={{ marginRight: '10px' }}>📜</span>
+              Roteiro
+            </h3>
+            
+            <div style={{ 
+              backgroundColor: '#f9fafb',
+              borderRadius: '6px',
+              padding: '16px',
+              border: '1px solid #e5e7eb',
+              marginBottom: '20px'
+            }}>
+              <p style={{ margin: '0', color: '#6b7280', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+                Número de Atos
+              </p>
+              <p style={{ margin: '0', color: '#1f2937', fontWeight: '600', fontSize: '14px' }}>
+                {teatro.numeroAtos || '0'}
+              </p>
+            </div>
+            
+            {teatro.roteiro ? (
+              <div style={{ 
+                backgroundColor: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                padding: '20px', 
+                borderRadius: '8px',
+                whiteSpace: 'pre-wrap',
+                color: '#1f2937',
+                lineHeight: '1.6',
+                maxHeight: '400px',
+                overflowY: 'auto',
+                fontSize: '14px'
+              }}>
+                {teatro.roteiro}
+              </div>
+            ) : (
+              <div style={{ 
+                backgroundColor: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                padding: '40px 20px', 
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#6b7280'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '15px' }}>📄</div>
+                <p style={{ margin: '0', fontSize: '16px' }}>Nenhum roteiro definido para este teatro.</p>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Scenario Tab */}
+        {activeTab === 'cenario' && (
+          <div style={{ 
+            backgroundColor: 'white',
+            border: '1px solid #e5e7eb',
+            padding: '24px', 
+            borderRadius: '8px',
+            marginBottom: '20px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ 
+              margin: '0 0 20px 0', 
+              color: '#1f2937',
+              fontSize: '18px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <span style={{ marginRight: '10px' }}>🎭</span>
+              Cenário
+            </h3>
+            
+            <div style={{ 
+              backgroundColor: '#f9fafb',
+              borderRadius: '6px',
+              padding: '16px',
+              border: '1px solid #e5e7eb',
+              marginBottom: '20px'
+            }}>
+              <p style={{ margin: '0', color: '#6b7280', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+                Quantidade de Cenas
+              </p>
+              <p style={{ margin: '0', color: '#1f2937', fontWeight: '600', fontSize: '14px' }}>
+                {teatro.quantidadeCenas || '0'}
+              </p>
+            </div>
+            
+            {teatro.cenario ? (
+              <div style={{ 
+                backgroundColor: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                padding: '20px', 
+                borderRadius: '8px',
+                whiteSpace: 'pre-wrap',
+                color: '#1f2937',
+                lineHeight: '1.6',
+                maxHeight: '400px',
+                overflowY: 'auto',
+                fontSize: '14px'
+              }}>
+                {teatro.cenario}
+              </div>
+            ) : (
+              <div style={{ 
+                backgroundColor: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                padding: '40px 20px', 
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#6b7280'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '15px' }}>🎨</div>
+                <p style={{ margin: '0', fontSize: '16px' }}>Nenhum cenário definido para este teatro.</p>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Costume Tab */}
+        {activeTab === 'figurino' && (
+          <div style={{ 
+            backgroundColor: 'white',
+            border: '1px solid #e5e7eb',
+            padding: '24px', 
+            borderRadius: '8px',
+            marginBottom: '20px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ 
+              margin: '0 0 20px 0', 
+              color: '#1f2937',
+              fontSize: '18px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <span style={{ marginRight: '10px' }}>👔</span>
+              Figurino
+            </h3>
+            
+            {teatro.figurino ? (
+              <div style={{ 
+                backgroundColor: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                padding: '20px', 
+                borderRadius: '8px',
+                whiteSpace: 'pre-wrap',
+                color: '#1f2937',
+                lineHeight: '1.6',
+                maxHeight: '400px',
+                overflowY: 'auto',
+                fontSize: '14px'
+              }}>
+                {teatro.figurino}
+              </div>
+            ) : (
+              <div style={{ 
+                backgroundColor: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                padding: '40px 20px', 
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#6b7280'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '15px' }}>👔</div>
+                <p style={{ margin: '0', fontSize: '16px' }}>Nenhum figurino definido para este teatro.</p>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Team Tab */}
+        {activeTab === 'participantes' && (
+          <div style={{ 
+            backgroundColor: 'white',
+            border: '1px solid #e5e7eb',
+            padding: '24px', 
+            borderRadius: '8px',
+            marginBottom: '20px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ 
+              margin: '0 0 20px 0', 
+              color: '#1f2937',
+              fontSize: '18px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <span style={{ marginRight: '10px' }}>👥</span>
+              Participantes
+            </h3>
+            
+            {showParticipantsLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  border: '3px solid #e5e7eb',
+                  borderTop: '3px solid #fc6c5f',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 16px'
+                }}></div>
+                <p style={{ color: '#6b7280', fontSize: '14px' }}>Carregando participantes...</p>
+              </div>
+            ) : participantesInfo.length > 0 ? (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {participantesInfo.map((participante) => (
+                  <div key={participante.id} style={{
+                    backgroundColor: '#f9fafb',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div>
+                      <p style={{ margin: '0', fontWeight: '600', color: '#1f2937', fontSize: '14px' }}>
+                        {participante.nome}
+                      </p>
+                      <p style={{ margin: '0', color: '#6b7280', fontSize: '12px' }}>
+                        {participante.email}
+                      </p>
+                    </div>
+                    {isCreator && (
+                      <button
+                        onClick={() => handleRemoveParticipante(participante.id)}
+                        style={{
+                          backgroundColor: '#fee2e2',
+                          color: '#dc2626',
+                          border: '1px solid #fca5a5',
+                          borderRadius: '4px',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{
+                backgroundColor: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                padding: '40px 20px',
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: '#6b7280'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '15px' }}>👥</div>
+                <p style={{ margin: '0', fontSize: '16px' }}>Nenhum participante ainda.</p>
+              </div>
+            )}
+            
+            {isCreator && (
+              <div style={{ marginTop: '20px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="email"
+                    placeholder="Email do participante"
+                    value={emailConvite}
+                    onChange={(e) => setEmailConvite(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  />
+                  <button
+                    onClick={handleConvidarParticipante}
+                    disabled={!emailConvite || saving}
+                    style={{
+                      backgroundColor: emailConvite && !saving ? '#fc6c5f' : '#e5e7eb',
+                      color: emailConvite && !saving ? 'white' : '#6b7280',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: emailConvite && !saving ? 'pointer' : 'not-allowed'
+                    }}
+                  >
+                    Convidar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      
+      <BottomNav currentPath="/teatros" />
     </div>
   );
 }
+
+
+// Componente para criar teatro com fluxo em etapas
 
 // Componente para criar teatro com fluxo em etapas
 function CriarTeatro() {
@@ -1752,7 +2584,7 @@ function CriarTeatro() {
   const [quantidadeAtos, setQuantidadeAtos] = useState('0');
   const [roteiro, setRoteiro] = useState('');
   const [emailParticipante, setEmailParticipante] = useState('');
-  const [local, setLocal] = useState('');  // Adicionado o estado local
+  const [local, setLocal] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -1761,12 +2593,10 @@ function CriarTeatro() {
   const fileInput = useRef<HTMLInputElement>(null);
   
   const handleImportClick = (targetField: string) => {
-    // Armazenar o campo de destino antes de abrir o seletor de arquivo
     setImportTarget(targetField);
     fileInput.current?.click();
   };
   
-  // Wrapper para compatibilidade com o handler de evento do botão
   const handleImportClickWithEvent = (targetField: string) => (event: React.MouseEvent) => {
     event.preventDefault();
     handleImportClick(targetField);
@@ -1989,35 +2819,130 @@ function CriarTeatro() {
     switch(etapa) {
       case 1: // Título, Dias de Ensaio, Data de Apresentação
         return (
-          <div className="mobile-wrapper">
-            <div className="mobile-header">
-              <button className="back-button" onClick={() => navigate(-1)}>
+          <div style={{ 
+            minHeight: '100vh',
+            backgroundColor: '#f8f9fa',
+            paddingBottom: '120px'
+          }}>
+            {/* Header */}
+            <div style={{ 
+              position: 'sticky',
+              top: 0,
+              backgroundColor: 'white',
+              borderBottom: '1px solid #e5e7eb',
+              zIndex: 2000,
+              padding: '16px 20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <button 
+                onClick={() => navigate(-1)}
+                style={{
+                  backgroundColor: '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: '#374151'
+                }}
+              >
                 ←
               </button>
-              <h1 className="mobile-header-title">Criar Grupo:</h1>
+              <div>
+                <h1 style={{ 
+                  margin: 0, 
+                  fontSize: '20px', 
+                  fontWeight: '600',
+                  color: '#1f2937'
+                }}>
+                  Criar Grupo
+                </h1>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  fontWeight: '500'
+                }}>
+                  Etapa 1 de 5 - Informações Básicas
+                </div>
+              </div>
             </div>
-            
-            <div className="mobile-content">
-              <div className="container">
-                <div className="form-group">
-                  <label>Título</label>
+
+            {/* Progress Bar */}
+            <div style={{
+              backgroundColor: 'white',
+              borderBottom: '1px solid #e5e7eb',
+              padding: '12px 20px'
+            }}>
+              <div style={{
+                width: '100%',
+                height: '4px',
+                backgroundColor: '#e5e7eb',
+                borderRadius: '2px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: '20%',
+                  height: '100%',
+                  backgroundColor: '#fc6c5f',
+                  transition: 'width 0.3s ease'
+                }}></div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px 20px' }}>
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb',
+                padding: '24px'
+              }}>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Título do Teatro
+                  </label>
                   <input
                     type="text"
-                    className="form-input"
                     value={titulo}
                     onChange={(e) => setTitulo(e.target.value)}
+                    placeholder="Digite o nome do seu teatro"
                     style={{
+                      width: '100%',
                       padding: '12px',
-                      borderRadius: '20px',
-                      border: '1px solid #e1e1e1',
-                      backgroundColor: '#ececec'
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      color: '#374151'
                     }}
                   />
                 </div>
-                {/* Dias de Ensaio substituído por botões */}
-                <div className="form-group">
-                  <label>Dias de Ensaio:</label>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Dias de Ensaio
+                  </label>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', 
+                    gap: '8px' 
+                  }}>
                     {diasSemana.map(dia => (
                       <button
                         type="button"
@@ -2028,61 +2953,110 @@ function CriarTeatro() {
                             : [...prev, dia]
                         )}
                         style={{
-                          padding: '8px 16px',
-                          borderRadius: '20px',
-                          border: diasEnsaio.includes(dia) ? '2px solid #041e42' : '1px solid #e1e1e1',
-                          background: diasEnsaio.includes(dia) ? '#041e42' : '#ececec',
-                          color: diasEnsaio.includes(dia) ? '#fff' : '#333',
-                          fontWeight: diasEnsaio.includes(dia) ? 'bold' : 'normal',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          border: diasEnsaio.includes(dia) ? '2px solid #fc6c5f' : '1px solid #d1d5db',
+                          backgroundColor: diasEnsaio.includes(dia) ? '#fc6c5f' : 'white',
+                          color: diasEnsaio.includes(dia) ? 'white' : '#374151',
+                          fontSize: '12px',
+                          fontWeight: '500',
                           cursor: 'pointer',
-                          marginBottom: 4
+                          transition: 'all 0.2s ease'
                         }}
                       >
-                        {dia}
+                        {dia.slice(0, 3)}
                       </button>
                     ))}
                   </div>
                 </div>
                 
-                <div className="form-group">
-                  <label>Data de Apresentação</label>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Data de Apresentação
+                  </label>
                   <input
                     type="date"
-                    className="form-input"
                     value={dataApresentacao}
                     onChange={(e) => setDataApresentacao(e.target.value)}
                     style={{
+                      width: '100%',
                       padding: '12px',
-                      borderRadius: '20px',
-                      border: '1px solid #e1e1e1',
-                      backgroundColor: '#ececec'
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      color: '#374151'
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Local (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={local}
+                    onChange={(e) => setLocal(e.target.value)}
+                    placeholder="Local das apresentações"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      color: '#374151'
                     }}
                   />
                 </div>
                 
                 {error && (
-                  <div className="error-message" style={{ color: 'red', marginBottom: '15px' }}>
+                  <div style={{
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderLeft: '4px solid #ef4444',
+                    color: '#dc2626',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    marginBottom: '24px'
+                  }}>
                     {error}
                   </div>
                 )}
-                
+
                 <button
-                  className="button-primary"
                   onClick={avancarEtapa}
-                  disabled={loading}
+                  disabled={loading || !titulo.trim()}
                   style={{
-                    backgroundColor: '#041e42',
+                    backgroundColor: (!titulo.trim() || loading) ? '#9ca3af' : '#fc6c5f',
                     color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '20px',
                     border: 'none',
+                    borderRadius: '6px',
+                    padding: '12px 24px',
                     width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    marginTop: '20px'
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: (!titulo.trim() || loading) ? 'not-allowed' : 'pointer',
+                    opacity: (!titulo.trim() || loading) ? 0.7 : 1
                   }}
                 >
-                  {loading ? 'Processando...' : 'Criar Grupo'}
+                  {loading ? 'Processando...' : 'Próxima Etapa'}
                 </button>
               </div>
             </div>
@@ -2091,121 +3065,208 @@ function CriarTeatro() {
         
       case 2: // Quantidade de Cenas, Cenário
         return (
-          <div className="mobile-wrapper">
-            <div className="mobile-header">
-              <button className="back-button" onClick={voltarEtapa}>
+          <div style={{ 
+            minHeight: '100vh',
+            backgroundColor: '#f8f9fa',
+            paddingBottom: '120px'
+          }}>
+            {/* Header */}
+            <div style={{ 
+              position: 'sticky',
+              top: 0,
+              backgroundColor: 'white',
+              borderBottom: '1px solid #e5e7eb',
+              zIndex: 2000,
+              padding: '16px 20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <button 
+                onClick={voltarEtapa}
+                style={{
+                  backgroundColor: '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: '#374151'
+                }}
+              >
                 ←
               </button>
-              <h1 className="mobile-header-title">Descrição</h1>
+              <div>
+                <h1 style={{ 
+                  margin: 0, 
+                  fontSize: '20px', 
+                  fontWeight: '600',
+                  color: '#1f2937'
+                }}>
+                  Cenário
+                </h1>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  fontWeight: '500'
+                }}>
+                  Etapa 2 de 5 - Configurações do Cenário
+                </div>
+              </div>
             </div>
-            
-            <div className="mobile-content">
-              <div className="container">
-                <div className="form-group">
-                  <label>Quantidade de Cenas:</label>
+
+            {/* Progress Bar */}
+            <div style={{
+              backgroundColor: 'white',
+              borderBottom: '1px solid #e5e7eb',
+              padding: '12px 20px'
+            }}>
+              <div style={{
+                width: '100%',
+                height: '4px',
+                backgroundColor: '#e5e7eb',
+                borderRadius: '2px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: '40%',
+                  height: '100%',
+                  backgroundColor: '#fc6c5f',
+                  transition: 'width 0.3s ease'
+                }}></div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px 20px' }}>
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb',
+                padding: '24px'
+              }}>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Quantidade de Cenas
+                  </label>
                   <input
                     type="number"
-                    className="form-input"
                     value={quantidadeCenas}
                     onChange={(e) => setQuantidadeCenas(e.target.value)}
+                    placeholder="0"
+                    min="0"
                     style={{
+                      width: '100%',
                       padding: '12px',
-                      borderRadius: '20px',
-                      border: '1px solid #e1e1e1',
-                      backgroundColor: '#ececec'
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      color: '#374151'
                     }}
                   />
                 </div>
                 
-                <div className="form-group">
-                  <label>Cenario:</label>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Descrição do Cenário
+                  </label>
                   <textarea
-                    className="form-textarea"
                     value={cenario}
                     onChange={(e) => setCenario(e.target.value)}
-                    rows={10}
+                    placeholder="Descreva os cenários da sua peça..."
+                    rows={8}
                     style={{
-                      padding: '12px',
-                      borderRadius: '20px',
-                      border: '1px solid #e1e1e1',
-                      backgroundColor: '#ececec',
                       width: '100%',
-                      resize: 'vertical'
+                      padding: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      color: '#374151',
+                      resize: 'vertical',
+                      minHeight: '120px'
                     }}
                   />
                 </div>
                 
                 {error && (
-                  <div className="error-message" style={{ color: 'red', marginBottom: '15px' }}>
+                  <div style={{
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderLeft: '4px solid #ef4444',
+                    color: '#dc2626',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    marginBottom: '24px'
+                  }}>
                     {error}
                   </div>
                 )}
-                
-          
-                
-                <button
-                  className="button-primary"
-                  onClick={avancarEtapa}
-                  disabled={loading}
-                  style={{
-                    backgroundColor: '#041e42',
-                    color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '20px',
-                    border: 'none',
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    marginTop: '20px'
-                  }}
-                >
-                  {loading ? 'Processando...' : 'Criar Grupo'}
-                </button>
-                
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  margin: '20px 0',
-                  color: '#666'
-                }}>
-                  <div style={{ height: '1px', backgroundColor: '#ccc', flex: 1 }}></div>
-                  <span style={{ margin: '0 10px' }}>ou</span>
-                  <div style={{ height: '1px', backgroundColor: '#ccc', flex: 1 }}></div>
+
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                  <button
+                    onClick={avancarEtapa}
+                    disabled={loading}
+                    style={{
+                      backgroundColor: loading ? '#9ca3af' : '#fc6c5f',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '12px 24px',
+                      flex: 1,
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      opacity: loading ? 0.7 : 1
+                    }}
+                  >
+                    {loading ? 'Processando...' : 'Próxima Etapa'}
+                  </button>
+                  
+                  <button
+                    onClick={handleImportClickWithEvent('cenario')}
+                    disabled={importLoading}
+                    style={{
+                      backgroundColor: importLoading ? '#9ca3af' : '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: importLoading ? 'not-allowed' : 'pointer',
+                      opacity: importLoading ? 0.7 : 1,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    📄 {importLoading ? 'Importando...' : 'Importar'}
+                  </button>
                 </div>
-                
-                <button
-                  onClick={handleImportClickWithEvent('cenario')}
-                  disabled={importLoading}
-                  style={{
-                    backgroundColor: '#fc6c5f',
-                    color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '20px',
-                    border: 'none',
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  {importLoading ? 'Importando...' : 'Importar Cenário (DOCX/TXT)'}
-                </button>
                 
                 <div style={{ 
                   fontSize: '12px', 
-                  color: '#666', 
-                  textAlign: 'center',
-                  marginTop: '8px'
+                  color: '#6b7280', 
+                  textAlign: 'center'
                 }}>
                   Formatos suportados: Word (.docx) e Texto (.txt)
                 </div>
-                
-                {error && (
-                  <div style={{ color: 'red', marginTop: '10px', fontSize: '14px' }}>
-                    {error}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -2213,114 +3274,208 @@ function CriarTeatro() {
         
       case 3: // Quantidade de Atores, Figurino
         return (
-          <div className="mobile-wrapper">
-            <div className="mobile-header">
-              <button className="back-button" onClick={voltarEtapa}>
+          <div style={{ 
+            minHeight: '100vh',
+            backgroundColor: '#f8f9fa',
+            paddingBottom: '120px'
+          }}>
+            {/* Header */}
+            <div style={{ 
+              position: 'sticky',
+              top: 0,
+              backgroundColor: 'white',
+              borderBottom: '1px solid #e5e7eb',
+              zIndex: 2000,
+              padding: '16px 20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <button 
+                onClick={voltarEtapa}
+                style={{
+                  backgroundColor: '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: '#374151'
+                }}
+              >
                 ←
               </button>
-              <h1 className="mobile-header-title">Descrição</h1>
+              <div>
+                <h1 style={{ 
+                  margin: 0, 
+                  fontSize: '20px', 
+                  fontWeight: '600',
+                  color: '#1f2937'
+                }}>
+                  Figurino
+                </h1>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  fontWeight: '500'
+                }}>
+                  Etapa 3 de 5 - Personagens e Figurino
+                </div>
+              </div>
             </div>
-            
-            <div className="mobile-content">
-              <div className="container">
-                <div className="form-group">
-                  <label>Quantidade de Atores</label>
+
+            {/* Progress Bar */}
+            <div style={{
+              backgroundColor: 'white',
+              borderBottom: '1px solid #e5e7eb',
+              padding: '12px 20px'
+            }}>
+              <div style={{
+                width: '100%',
+                height: '4px',
+                backgroundColor: '#e5e7eb',
+                borderRadius: '2px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: '60%',
+                  height: '100%',
+                  backgroundColor: '#fc6c5f',
+                  transition: 'width 0.3s ease'
+                }}></div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px 20px' }}>
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb',
+                padding: '24px'
+              }}>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Quantidade de Atores
+                  </label>
                   <input
                     type="number"
-                    className="form-input"
                     value={quantidadeAtores}
                     onChange={(e) => setQuantidadeAtores(e.target.value)}
+                    placeholder="0"
+                    min="0"
                     style={{
+                      width: '100%',
                       padding: '12px',
-                      borderRadius: '20px',
-                      border: '1px solid #e1e1e1',
-                      backgroundColor: '#ececec'
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      color: '#374151'
                     }}
                   />
                 </div>
                 
-                <div className="form-group">
-                  <label>Figurino</label>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Descrição do Figurino
+                  </label>
                   <textarea
-                    className="form-textarea"
                     value={figurino}
                     onChange={(e) => setFigurino(e.target.value)}
-                    rows={10}
+                    placeholder="Descreva os figurinos dos personagens..."
+                    rows={8}
                     style={{
-                      padding: '12px',
-                      borderRadius: '20px',
-                      border: '1px solid #e1e1e1',
-                      backgroundColor: '#ececec',
                       width: '100%',
-                      resize: 'vertical'
+                      padding: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      color: '#374151',
+                      resize: 'vertical',
+                      minHeight: '120px'
                     }}
                   />
                 </div>
                 
                 {error && (
-                  <div className="error-message" style={{ color: 'red', marginBottom: '15px' }}>
+                  <div style={{
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderLeft: '4px solid #ef4444',
+                    color: '#dc2626',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    marginBottom: '24px'
+                  }}>
                     {error}
                   </div>
                 )}
-                
-                <button
-                  className="button-primary"
-                  onClick={avancarEtapa}
-                  disabled={loading}
-                  style={{
-                    backgroundColor: '#041e42',
-                    color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '20px',
-                    border: 'none',
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    marginTop: '20px'
-                  }}
-                >
-                  {loading ? 'Processando...' : 'Criar Grupo'}
-                </button>
-                
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  margin: '20px 0',
-                  color: '#666'
-                }}>
-                  <div style={{ height: '1px', backgroundColor: '#ccc', flex: 1 }}></div>
-                  <span style={{ margin: '0 10px' }}>ou</span>
-                  <div style={{ height: '1px', backgroundColor: '#ccc', flex: 1 }}></div>
+
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                  <button
+                    onClick={avancarEtapa}
+                    disabled={loading}
+                    style={{
+                      backgroundColor: loading ? '#9ca3af' : '#fc6c5f',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '12px 24px',
+                      flex: 1,
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      opacity: loading ? 0.7 : 1
+                    }}
+                  >
+                    {loading ? 'Processando...' : 'Próxima Etapa'}
+                  </button>
+                  
+                  <button
+                    onClick={handleImportClickWithEvent('figurino')}
+                    disabled={importLoading}
+                    style={{
+                      backgroundColor: importLoading ? '#9ca3af' : '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: importLoading ? 'not-allowed' : 'pointer',
+                      opacity: importLoading ? 0.7 : 1,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    👔 {importLoading ? 'Importando...' : 'Importar'}
+                  </button>
                 </div>
-                
-                <button
-                  onClick={handleImportClickWithEvent('figurino')}
-                  disabled={importLoading}
-                  style={{
-                    backgroundColor: '#fc6c5f',
-                    color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '20px',
-                    border: 'none',
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  {importLoading ? 'Importando...' : 'Importar Figurino (DOCX/TXT)'}
-                </button>
                 
                 <div style={{ 
                   fontSize: '12px', 
-                  color: '#666', 
-                  textAlign: 'center',
-                  marginTop: '8px'
+                  color: '#6b7280', 
+                  textAlign: 'center'
                 }}>
                   Formatos suportados: Word (.docx) e Texto (.txt)
                 </div>
-                
               </div>
             </div>
           </div>
@@ -2328,110 +3483,205 @@ function CriarTeatro() {
         
       case 4: // Quantidade de Atos, Roteiro
         return (
-          <div className="mobile-wrapper">
-            <div className="mobile-header">
-              <button className="back-button" onClick={voltarEtapa}>
+          <div style={{ 
+            minHeight: '100vh',
+            backgroundColor: '#f8f9fa',
+            paddingBottom: '120px'
+          }}>
+            {/* Header */}
+            <div style={{ 
+              position: 'sticky',
+              top: 0,
+              backgroundColor: 'white',
+              borderBottom: '1px solid #e5e7eb',
+              zIndex: 2000,
+              padding: '16px 20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <button 
+                onClick={voltarEtapa}
+                style={{
+                  backgroundColor: '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: '#374151'
+                }}
+              >
                 ←
               </button>
-              <h1 className="mobile-header-title">Descrição</h1>
+              <div>
+                <h1 style={{ 
+                  margin: 0, 
+                  fontSize: '20px', 
+                  fontWeight: '600',
+                  color: '#1f2937'
+                }}>
+                  Roteiro
+                </h1>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  fontWeight: '500'
+                }}>
+                  Etapa 4 de 5 - História e Roteiro
+                </div>
+              </div>
             </div>
-            
-            <div className="mobile-content">
-              <div className="container">
-                <div className="form-group">
-                  <label>Quantidade de Atos</label>
+
+            {/* Progress Bar */}
+            <div style={{
+              backgroundColor: 'white',
+              borderBottom: '1px solid #e5e7eb',
+              padding: '12px 20px'
+            }}>
+              <div style={{
+                width: '100%',
+                height: '4px',
+                backgroundColor: '#e5e7eb',
+                borderRadius: '2px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: '80%',
+                  height: '100%',
+                  backgroundColor: '#fc6c5f',
+                  transition: 'width 0.3s ease'
+                }}></div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px 20px' }}>
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb',
+                padding: '24px'
+              }}>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Quantidade de Atos
+                  </label>
                   <input
                     type="number"
-                    className="form-input"
                     value={quantidadeAtos}
                     onChange={(e) => setQuantidadeAtos(e.target.value)}
+                    placeholder="0"
+                    min="0"
                     style={{
+                      width: '100%',
                       padding: '12px',
-                      borderRadius: '20px',
-                      border: '1px solid #e1e1e1',
-                      backgroundColor: '#ececec'
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      color: '#374151'
                     }}
                   />
                 </div>
                 
-                <div className="form-group">
-                  <label>Roteiro</label>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>
+                    Roteiro Completo
+                  </label>
                   <textarea
-                    className="form-textarea"
                     value={roteiro}
                     onChange={(e) => setRoteiro(e.target.value)}
+                    placeholder="Digite o roteiro completo da sua peça..."
                     rows={10}
                     style={{
-                      padding: '12px',
-                      borderRadius: '20px',
-                      border: '1px solid #e1e1e1',
-                      backgroundColor: '#ececec',
                       width: '100%',
-                      resize: 'vertical'
+                      padding: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      outline: 'none',
+                      color: '#374151',
+                      resize: 'vertical',
+                      minHeight: '200px'
                     }}
                   />
                 </div>
                 
                 {error && (
-                  <div className="error-message" style={{ color: 'red', marginBottom: '15px' }}>
+                  <div style={{
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderLeft: '4px solid #ef4444',
+                    color: '#dc2626',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    marginBottom: '24px'
+                  }}>
                     {error}
                   </div>
                 )}
-                
-                <button
-                  className="button-primary"
-                  onClick={avancarEtapa}
-                  disabled={loading}
-                  style={{
-                    backgroundColor: '#041e42',
-                    color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '20px',
-                    border: 'none',
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    marginTop: '20px'
-                  }}
-                >
-                  {loading ? 'Processando...' : 'Criar Grupo'}
-                </button>
-                
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  margin: '20px 0',
-                  color: '#666'
-                }}>
-                  <div style={{ height: '1px', backgroundColor: '#ccc', flex: 1 }}></div>
-                  <span style={{ margin: '0 10px' }}>ou</span>
-                  <div style={{ height: '1px', backgroundColor: '#ccc', flex: 1 }}></div>
+
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                  <button
+                    onClick={avancarEtapa}
+                    disabled={loading}
+                    style={{
+                      backgroundColor: loading ? '#9ca3af' : '#fc6c5f',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '12px 24px',
+                      flex: 1,
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      opacity: loading ? 0.7 : 1
+                    }}
+                  >
+                    {loading ? 'Criando Teatro...' : 'Criar Teatro'}
+                  </button>
+                  
+                  <button
+                    onClick={handleImportClickWithEvent('roteiro')}
+                    disabled={importLoading}
+                    style={{
+                      backgroundColor: importLoading ? '#9ca3af' : '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '12px 16px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: importLoading ? 'not-allowed' : 'pointer',
+                      opacity: importLoading ? 0.7 : 1,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    📜 {importLoading ? 'Importando...' : 'Importar'}
+                  </button>
                 </div>
-                
-                <button
-                  onClick={handleImportClickWithEvent('roteiro')}
-                  disabled={importLoading}
-                  style={{
-                    backgroundColor: '#fc6c5f',
-                    color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '20px',
-                    border: 'none',
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  {importLoading ? 'Importando...' : 'Importar Roteiro (DOCX/TXT)'}
-                </button>
                 
                 <div style={{ 
                   fontSize: '12px', 
-                  color: '#666', 
-                  textAlign: 'center',
-                  marginTop: '8px'
+                  color: '#6b7280', 
+                  textAlign: 'center'
                 }}>
                   Formatos suportados: Word (.docx) e Texto (.txt)
                 </div>
@@ -2442,67 +3692,197 @@ function CriarTeatro() {
         
       case 5: // Finalizar processo / Convidar
         return (
-          <div className="mobile-wrapper">
-            <div className="mobile-header">
-              <button className="back-button" onClick={voltarEtapa}>
+          <div style={{ 
+            minHeight: '100vh',
+            backgroundColor: '#f8f9fa',
+            paddingBottom: '120px'
+          }}>
+            {/* Header */}
+            <div style={{ 
+              position: 'sticky',
+              top: 0,
+              backgroundColor: 'white',
+              borderBottom: '1px solid #e5e7eb',
+              zIndex: 2000,
+              padding: '16px 20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <button 
+                onClick={voltarEtapa}
+                style={{
+                  backgroundColor: '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: '#374151'
+                }}
+              >
                 ←
               </button>
-              <h1 className="mobile-header-title">Finalizar</h1>
-            </div>
-            
-            <div className="mobile-content">
-              <div className="container">
-                <div className="success-message" style={{ textAlign: 'center', marginBottom: '20px' }}>
-                  <div style={{ 
-                    width: '80px', 
-                    height: '80px', 
-                    borderRadius: '50%', 
-                    backgroundColor: '#3e8e41', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    margin: '0 auto 20px' 
-                  }}>
-                    <span style={{ color: 'white', fontSize: '40px' }}>✓</span>
-                  </div>
-                  <h2>Grupo Criado com Sucesso!</h2>
-                  <p>ID do Grupo: {teatroId}</p>
+              <div>
+                <h1 style={{ 
+                  margin: 0, 
+                  fontSize: '20px', 
+                  fontWeight: '600',
+                  color: '#1f2937'
+                }}>
+                  Teatro Criado!
+                </h1>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  fontWeight: '500'
+                }}>
+                  Etapa 5 de 5 - Finalização
                 </div>
-                
-                <button
-                  className="button-primary"
-                  onClick={copiarId}
-                  style={{
-                    backgroundColor: '#041e42',
-                    color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '20px',
-                    border: 'none',
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    marginBottom: '15px'
-                  }}
-                >
-                  Copiar ID
-                </button>
-                
-                <button
-                  className="button-primary"
-                  onClick={avancarEtapa}
-                  style={{
-                    backgroundColor: '#3e8e41',
-                    color: 'white',
-                    padding: '12px 0',
-                    borderRadius: '20px',
-                    border: 'none',
-                    width: '100%',
-                    fontSize: '16px',
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div style={{
+              backgroundColor: 'white',
+              borderBottom: '1px solid #e5e7eb',
+              padding: '12px 20px'
+            }}>
+              <div style={{
+                width: '100%',
+                height: '4px',
+                backgroundColor: '#e5e7eb',
+                borderRadius: '2px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  backgroundColor: '#10b981',
+                  transition: 'width 0.3s ease'
+                }}></div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px 20px' }}>
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb',
+                padding: '32px 24px',
+                textAlign: 'center'
+              }}>
+                {/* Success Icon */}
+                <div style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  backgroundColor: '#10b981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 24px',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                }}>
+                  <span style={{ 
+                    color: 'white', 
+                    fontSize: '36px',
                     fontWeight: 'bold'
-                  }}
-                >
-                  Ver Detalhes do Grupo
-                </button>
+                  }}>
+                    ✓
+                  </span>
+                </div>
+
+                <h2 style={{
+                  margin: '0 0 16px 0',
+                  fontSize: '24px',
+                  fontWeight: '600',
+                  color: '#1f2937'
+                }}>
+                  Teatro Criado com Sucesso!
+                </h2>
+
+                <div style={{
+                  backgroundColor: '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  padding: '16px',
+                  marginBottom: '24px'
+                }}>
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#6b7280',
+                    marginBottom: '4px',
+                    fontWeight: '500'
+                  }}>
+                    ID do Teatro
+                  </div>
+                  <div style={{
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    fontFamily: 'monospace',
+                    letterSpacing: '1px'
+                  }}>
+                    {teatroId}
+                  </div>
+                </div>
+
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '12px'
+                }}>
+                  <button
+                    onClick={copiarId}
+                    style={{
+                      backgroundColor: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '12px 24px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    📋 Copiar ID do Teatro
+                  </button>
+                  
+                  <button
+                    onClick={avancarEtapa}
+                    style={{
+                      backgroundColor: '#fc6c5f',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '16px 24px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Ver Detalhes do Teatro
+                  </button>
+                </div>
+
+                <div style={{
+                  marginTop: '24px',
+                  padding: '16px',
+                  backgroundColor: '#fef3c7',
+                  border: '1px solid #fbbf24',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  color: '#92400e'
+                }}>
+                  💡 <strong>Dica:</strong> Compartilhe o ID do teatro com seus colegas para que possam se juntar ao grupo!
+                </div>
               </div>
             </div>
           </div>
@@ -2514,19 +3894,8 @@ function CriarTeatro() {
   };
   
   return (
-    <div className="mobile-wrapper">
-      <div className="mobile-header">
-        <button className="back-button" onClick={() => navigate(-1)}>
-          ←
-        </button>
-        <h1 className="mobile-header-title">Criar Grupo</h1>
-      </div>
-      
-      <div className="mobile-content">
-        <div className="container">
-          {renderEtapa()}
-        </div>
-      </div>
+    <div>
+      {renderEtapa()}
       
       {/* Input de arquivo invisível para importação */}
       <input
@@ -2537,7 +3906,20 @@ function CriarTeatro() {
         onChange={handleFileChange}
       />
       
-      <BottomNav currentPath="/criar-teatro" />
+      {/* Navegação inferior */}
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: 'white',
+        borderTop: '1px solid #e5e7eb',
+        boxShadow: '0 -1px 3px rgba(0, 0, 0, 0.1)',
+        padding: '15px 20px',
+        zIndex: 2000
+      }}>
+        <BottomNav currentPath="/teatro" />
+      </div>
     </div>
   );
 }
@@ -2579,6 +3961,8 @@ function App() {
           <Route path="/cadastro" element={<Cadastro />} />
           <Route path="/esqueci-senha" element={<EsqueciSenha />} />
         </Route>
+        
+        <Route path="/alterar-senha" element={<AlterarSenha />} />
         
         <Route path="/set-admin" element={<SetAdmin />} />
       </Routes>
@@ -2704,214 +4088,299 @@ function Buscar() {
   };
   
   return (
-    <div className="mobile-wrapper">
-      <div className="mobile-header">
-        <h1 className="mobile-title">Buscar</h1>
+    <div style={{ 
+      minHeight: '100vh',
+      backgroundColor: '#f8f9fa',
+      paddingBottom: '120px'
+    }}>
+      {/* Header */}
+      <div style={{ 
+        position: 'sticky',
+        top: 0,
+        backgroundColor: 'white',
+        borderBottom: '1px solid #e5e7eb',
+        zIndex: 2000,
+        padding: '16px 20px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}>
+        <h1 style={{ 
+          margin: 0, 
+          fontSize: '20px', 
+          fontWeight: '600',
+          color: '#1f2937',
+          textAlign: 'center'
+        }}>
+          Buscar Teatro
+        </h1>
       </div>
-      <div className="mobile-content">
-        <div style={{ padding: '20px' }}>
-          <div style={{ marginBottom: '20px' }}>
-            <h2 style={{ 
-              fontSize: '18px', 
-              marginBottom: '15px',
-              textAlign: 'center'
-            }}>
-              Encontre um teatro pelo ID
-            </h2>
-            
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '15px' 
-            }}>
-              <div style={{ 
-                position: 'relative',
+
+      {/* Content */}
+      <div style={{ padding: '20px' }}>
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ 
+            fontSize: '18px', 
+            marginBottom: '8px',
+            textAlign: 'center',
+            color: '#374151',
+            fontWeight: '500'
+          }}>
+            Encontre um teatro pelo ID
+          </h2>
+          <p style={{ 
+            fontSize: '14px', 
+            color: '#6b7280', 
+            textAlign: 'center',
+            margin: '0 0 20px 0'
+          }}>
+            Digite o ID para buscar e participar de um grupo de teatro
+          </p>
+          
+          <div style={{ 
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Digite o ID do teatro" 
+              style={{
+                width: '100%',
+                padding: '12px 45px 12px 15px',
+                borderRadius: '8px',
+                border: '1px solid #d1d5db',
+                fontSize: '16px',
+                backgroundColor: 'white',
+                outline: 'none',
+                color: '#374151'
+              }}
+            />
+            <button
+              onClick={handleSearch}
+              disabled={loading}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                backgroundColor: '#fc6c5f',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                width: '32px',
+                height: '32px',
                 display: 'flex',
-                alignItems: 'center'
-              }}>
-                <input 
-                  type="text" 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Digite o ID do teatro" 
-                  style={{
-                    width: '100%',
-                    padding: '12px 45px 12px 15px',
-                    borderRadius: '30px',
-                    border: '1px solid #ddd',
-                    fontSize: '16px',
-                    backgroundColor: '#f5f5f5',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  onClick={handleSearch}
-                  disabled={loading}
-                  style={{
-                    position: 'absolute',
-                    right: '5px',
-                    backgroundColor: '#fc6c5f',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '36px',
-                    height: '36px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <span style={{ fontSize: '18px' }}>🔍</span>
-                </button>
-              </div>
-              
-              <p style={{ 
-                fontSize: '14px', 
-                color: '#666', 
-                textAlign: 'center',
-                margin: '0'
-              }}>
-                Digite o ID para buscar e participar de um grupo de teatro
-              </p>
-              
-              {error && (
-                <div style={{ 
-                  backgroundColor: '#ffebee', 
-                  color: '#d32f2f', 
-                  padding: '12px',
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                  fontSize: '14px',
-                  marginTop: '10px'
-                }}>
-                  {error}
-                </div>
-              )}
-            </div>
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>🔍</span>
+            </button>
           </div>
           
-          {loading && (
+          {error && (
             <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '40px 0',
-              color: '#666'
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderLeft: '4px solid #ef4444',
+              color: '#dc2626', 
+              padding: '12px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              marginTop: '12px'
             }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                border: '3px solid #f3f3f3',
-                borderTop: '3px solid #fc6c5f',
-                borderRadius: '50%',
-                marginBottom: '15px',
-                animation: 'spin 1s linear infinite'
-              }}></div>
-              <p>Buscando teatro...</p>
+              {error}
             </div>
           )}
-          
-          {showResults && !loading && !error && !teatro && (
+        </div>
+        
+        {loading && (
+          <div style={{ 
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            border: '1px solid #e5e7eb',
+            padding: '40px 20px',
+            textAlign: 'center'
+          }}>
             <div style={{
-              backgroundColor: '#f5f5f5',
-              padding: '20px',
-              borderRadius: '8px',
-              textAlign: 'center',
-              marginTop: '20px'
+              width: '40px',
+              height: '40px',
+              border: '3px solid #f3f3f3',
+              borderTop: '3px solid #fc6c5f',
+              borderRadius: '50%',
+              marginBottom: '15px',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 15px'
+            }}></div>
+            <p style={{ color: '#6b7280', margin: 0 }}>Buscando teatro...</p>
+          </div>
+        )}
+        
+        {showResults && !loading && !error && !teatro && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            border: '1px solid #e5e7eb',
+            padding: '24px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎭</div>
+            <h3 style={{ 
+              margin: '0 0 8px 0', 
+              fontSize: '16px',
+              color: '#374151',
+              fontWeight: '500'
             }}>
-              <p>Nenhum teatro encontrado com este ID.</p>
-              <p style={{ fontSize: '14px', color: '#666', marginTop: '10px' }}>
-                Verifique se o ID está correto e tente novamente.
+              Nenhum teatro encontrado
+            </h3>
+            <p style={{ 
+              fontSize: '14px', 
+              color: '#6b7280', 
+              margin: 0
+            }}>
+              Verifique se o ID está correto e tente novamente.
+            </p>
+          </div>
+        )}
+        
+        {teatro && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            border: '1px solid #e5e7eb',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: '20px',
+              backgroundColor: '#fc6c5f',
+              color: 'white'
+            }}>
+              <h3 style={{ 
+                margin: '0 0 4px 0', 
+                fontSize: '18px',
+                fontWeight: '600'
+              }}>
+                {teatro.titulo}
+              </h3>
+              <p style={{ 
+                margin: '0', 
+                fontSize: '14px', 
+                opacity: '0.9'
+              }}>
+                ID: {teatro.id}
               </p>
             </div>
-          )}
-          
-          {teatro && (
-            <div style={{
-              backgroundColor: '#fff',
-              borderRadius: '12px',
-              overflow: 'hidden',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              marginTop: '20px'
-            }}>
-              <div style={{
-                padding: '20px',
-                backgroundColor: '#fc6c5f',
-                color: 'white'
+            
+            <div style={{ padding: '20px' }}>
+              <div style={{ 
+                display: 'grid',
+                gap: '16px',
+                marginBottom: '20px'
               }}>
-                <h3 style={{ margin: '0 0 5px 0', fontSize: '20px' }}>{teatro.titulo}</h3>
-                <p style={{ margin: '0', fontSize: '14px', opacity: '0.8' }}>ID: {teatro.id}</p>
-              </div>
-              
-              <div style={{ padding: '20px' }}>
-                <div style={{ marginBottom: '15px' }}>
+                <div style={{
+                  backgroundColor: '#f9fafb',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #e5e7eb'
+                }}>
                   <p style={{ 
-                    margin: '0 0 5px 0', 
-                    fontSize: '14px', 
-                    color: '#666', 
-                    fontWeight: 'bold' 
+                    margin: '0 0 4px 0', 
+                    fontSize: '12px', 
+                    color: '#6b7280', 
+                    fontWeight: '500',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
                   }}>
                     Data de Apresentação
                   </p>
-                  <p style={{ margin: '0', fontSize: '16px' }}>
+                  <p style={{ 
+                    margin: '0', 
+                    fontSize: '14px',
+                    color: '#374151',
+                    fontWeight: '500'
+                  }}>
                     {formatarData(teatro.dataApresentacao)}
                   </p>
                 </div>
                 
-                <div style={{ marginBottom: '15px' }}>
+                <div style={{
+                  backgroundColor: '#f9fafb',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #e5e7eb'
+                }}>
                   <p style={{ 
-                    margin: '0 0 5px 0', 
-                    fontSize: '14px', 
-                    color: '#666', 
-                    fontWeight: 'bold' 
+                    margin: '0 0 4px 0', 
+                    fontSize: '12px', 
+                    color: '#6b7280', 
+                    fontWeight: '500',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
                   }}>
                     Dias de Ensaio
                   </p>
-                  <p style={{ margin: '0', fontSize: '16px' }}>
+                  <p style={{ 
+                    margin: '0', 
+                    fontSize: '14px',
+                    color: '#374151',
+                    fontWeight: '500'
+                  }}>
                     {teatro.diasEnsaio?.join(', ') || 'Não definidos'}
                   </p>
                 </div>
                 
-                <div style={{ marginBottom: '15px' }}>
+                <div style={{
+                  backgroundColor: '#f9fafb',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #e5e7eb'
+                }}>
                   <p style={{ 
-                    margin: '0 0 5px 0', 
-                    fontSize: '14px', 
-                    color: '#666', 
-                    fontWeight: 'bold' 
+                    margin: '0 0 4px 0', 
+                    fontSize: '12px', 
+                    color: '#6b7280', 
+                    fontWeight: '500',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
                   }}>
                     Participantes
                   </p>
-                  <p style={{ margin: '0', fontSize: '16px' }}>
+                  <p style={{ 
+                    margin: '0', 
+                    fontSize: '14px',
+                    color: '#374151',
+                    fontWeight: '500'
+                  }}>
                     {teatro.participantes?.length || 0} participante(s)
                   </p>
                 </div>
-                
-                <button
-                  onClick={handleJoinTeatro}
-                  disabled={loading}
-                  style={{
-                    backgroundColor: isParticipating(teatro) ? '#4caf50' : '#fc6c5f',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '30px',
-                    padding: '12px 0',
-                    width: '100%',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    marginTop: '10px'
-                  }}
-                >
-                  {isParticipating(teatro) ? 'Ver Teatro' : 'Participar do Teatro'}
-                </button>
               </div>
+              
+              <button
+                onClick={handleJoinTeatro}
+                disabled={loading}
+                style={{
+                  backgroundColor: isParticipating(teatro) ? '#6b7280' : '#fc6c5f',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '12px 24px',
+                  width: '100%',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.7 : 1
+                }}
+              >
+                {isParticipating(teatro) ? 'Ver Teatro' : 'Participar do Teatro'}
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+      
       <BottomNav currentPath="/buscar" />
     </div>
   );
@@ -3076,389 +4545,174 @@ function Eventos() {
   };
   
   return (
-    <div className="mobile-wrapper">
-      <div className="mobile-header">
-        <h1 className="mobile-title">Eventos</h1>
+    <div style={{ 
+      minHeight: '100vh',
+      backgroundColor: '#f8f9fa',
+      paddingBottom: '120px'
+    }}>
+      {/* Header */}
+      <div style={{ 
+        position: 'sticky',
+        top: 0,
+        backgroundColor: 'white',
+        borderBottom: '1px solid #e5e7eb',
+        zIndex: 2000,
+        padding: '16px 20px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}>
+        <h1 style={{ 
+          margin: 0, 
+          fontSize: '20px', 
+          fontWeight: '600',
+          color: '#1f2937',
+          textAlign: 'center'
+        }}>
+          Eventos
+        </h1>
       </div>
-      <div className="mobile-content" style={{ overflow: 'auto', height: 'calc(100vh - 56px - 60px)' }}>
-        <div style={{ padding: '15px', paddingBottom: '80px' }}>
-          {loading ? (
-            <div style={{ 
-              textAlign: 'center', 
-              padding: '40px 0',
-              color: '#666'
-            }}>
-              <p>Carregando eventos...</p>
-            </div>
-          ) : (
-            <>
-              {/* Calendário interativo */}
-              <SimpleCalendarInteractive 
-                onSelectDate={handleDateSelect}
-                ensaioDates={ensaioDates}
-                apresentacaoDates={apresentacaoDates}
-              />
-              
-              {/* Lista de eventos da data selecionada */}
-              <div style={{ marginBottom: '20px' }}>
-                <h2 style={{ 
-                  marginBottom: '15px', 
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <span style={{ fontSize: '22px' }}>📅</span>
-                  Eventos em {formatDate(selectedDate)}
-                </h2>
-                
-                {eventos.length === 0 ? (
-                  <div style={{
-                    backgroundColor: '#f9f9f9',
-                    padding: '20px',
-                    borderRadius: '8px',
-                    textAlign: 'center',
-                    color: '#666'
-                  }}>
-                    <p>Não há eventos agendados para esta data.</p>
-                    <p style={{ fontSize: '14px', marginTop: '10px' }}>
-                      Os eventos dos seus teatros aparecerão aqui.
-                    </p>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '60px' }}>
-                    {eventos.map((evento, index) => (
-                      <div 
-                        key={index}
-                        style={{
-                          backgroundColor: '#fff',
-                          padding: '15px',
-                          borderRadius: '8px',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                          borderLeft: evento.tipo === 'apresentacao' ? '4px solid #fc6c5f' : '4px solid #6c5ce7'
-                        }}
-                        onClick={() => navigate(`/teatro/${evento.teatro.id}`)}
-                      >
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: '5px'
-                        }}>
-                          <h3 style={{ 
-                            margin: 0, 
-                            fontSize: '16px',
-                            fontWeight: 'bold'
-                          }}>
-                            {evento.teatro.titulo}
-                          </h3>
-                          <span style={{
-                            fontSize: '12px',
-                            padding: '2px 8px',
-                            backgroundColor: evento.tipo === 'apresentacao' ? '#fc6c5f' : '#6c5ce7',
-                            color: 'white',
-                            borderRadius: '12px'
-                          }}>
-                            {evento.tipo === 'apresentacao' ? 'Apresentação' : 'Ensaio'}
-                          </span>
-                        </div>
-                        
-                        <p style={{ 
-                          margin: '5px 0',
-                          fontSize: '14px',
-                          color: '#666'
-                        }}>
-                          {evento.teatro.local ? `Local: ${evento.teatro.local}` : 'Local não definido'}
-                        </p>
-                        
-                        <p style={{ 
-                          margin: '0',
-                          fontSize: '12px',
-                          color: '#888',
-                          textAlign: 'right',
-                          marginTop: '5px'
-                        }}>
-                          Toque para ver detalhes
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-      <BottomNav currentPath="/eventos" />
-    </div>
-  );
-}
 
-function Perfil() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const dataService = useDataService();
-  const [loading, setLoading] = useState(true);
-  const [userStats, setUserStats] = useState({
-    gruposAtivos: 0,
-    participacoes: 0
-  });
-  
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user) return;
-      
-      setLoading(true);
-      try {
-        // Fetch user's theaters
-        const teatros = await dataService.getTeatros();
-        
-        // Calculate statistics
-        const gruposAtivos = teatros.length;
-        
-        // Calculate total participations (sum of all theaters where user is not the creator)
-        const participacoes = teatros.reduce((count, teatro) => {
-          // If user is not the creator, it counts as a participation
-          return count + (teatro.criador !== user.uid ? 1 : 0);
-        }, 0);
-        
-        setUserStats({
-          gruposAtivos,
-          participacoes
-        });
-      } catch (error) {
-        console.error('Erro ao carregar dados do usuário:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchUserData();
-  }, [user, dataService]);
-  
-  const handleLogout = async () => {
-    try {
-      await auth.signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-    }
-  };
-  
-  return (
-    <div className="mobile-wrapper">
-      <div className="mobile-header">
-        <h1 className="mobile-title">Perfil</h1>
-      </div>
-      <div className="mobile-content">
-        <div style={{ padding: '20px', paddingBottom: '120px' }}>
-          {/* Header com foto e informações básicas */}
+      {/* Content */}
+      <div style={{ padding: '16px' }}>
+        {loading ? (
           <div style={{ 
-            display: 'flex',
-            alignItems: 'center',
-            marginBottom: '25px',
-            padding: '15px',
-            backgroundColor: '#f8f8f8',
-            borderRadius: '12px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            border: '1px solid #e5e7eb',
+            padding: '40px 20px',
+            textAlign: 'center'
           }}>
             <div style={{
-              width: '80px',
-              height: '80px',
+              width: '40px',
+              height: '40px',
+              border: '3px solid #f3f3f3',
+              borderTop: '3px solid #fc6c5f',
               borderRadius: '50%',
-              backgroundColor: '#041e42',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '32px',
-              fontWeight: 'bold',
-              marginRight: '20px',
-              boxShadow: '0 3px 6px rgba(0,0,0,0.1)'
-            }}>
-              {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
-            </div>
+              marginBottom: '15px',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 15px'
+            }}></div>
+            <p style={{ color: '#6b7280', margin: 0 }}>Carregando eventos...</p>
+          </div>
+        ) : (
+          <>
+            {/* Calendário interativo */}
+            <SimpleCalendarInteractive 
+              onSelectDate={handleDateSelect}
+              ensaioDates={ensaioDates}
+              apresentacaoDates={apresentacaoDates}
+            />
             
+            {/* Lista de eventos da data selecionada */}
             <div>
-              <h2 style={{ margin: '0 0 5px 0', fontSize: '20px', color: '#333' }}>
-                {user?.displayName || user?.email?.split('@')[0] || 'Usuário'}
+              <h2 style={{ 
+                marginBottom: '16px', 
+                fontSize: '16px',
+                fontWeight: '600',
+                color: '#374151',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '18px' }}>📅</span>
+                Eventos em {formatDate(selectedDate)}
               </h2>
-              {user && (
-                <p style={{ margin: '0', color: '#666', fontSize: '14px' }}>{user.email}</p>
-              )}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                marginTop: '8px',
-                color: '#4caf50',
-                fontSize: '13px'
-              }}>
-                <span style={{ 
-                  width: '8px', 
-                  height: '8px', 
-                  borderRadius: '50%', 
-                  backgroundColor: '#4caf50',
-                  marginRight: '5px'
-                }}></span>
-                Ativo
-              </div>
-            </div>
-          </div>
-
-          {/* Seções do perfil */}
-          <div style={{ marginBottom: '25px' }}>
-            <h3 style={{ 
-              fontSize: '16px', 
-              color: '#333', 
-              marginBottom: '15px',
-              fontWeight: 'bold',
-              paddingBottom: '8px',
-              borderBottom: '1px solid #eee'
-            }}>
-              Informações da Conta
-            </h3>
-            
-            <div style={{
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              overflow: 'hidden',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-            }}>
-              <div style={{ 
-                padding: '15px',
-                borderBottom: '1px solid #f0f0f0',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <div style={{ fontSize: '14px', color: '#888', marginBottom: '3px' }}>Email</div>
-                  <div style={{ fontSize: '16px' }}>{user?.email || 'Não disponível'}</div>
-                </div>
-                <div style={{ color: '#fc6c5f', fontSize: '14px', cursor: 'pointer' }}>
-                  Verificado
-                </div>
-              </div>
               
-              <div style={{ 
-                padding: '15px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <div style={{ fontSize: '14px', color: '#888', marginBottom: '3px' }}>Senha</div>
-                  <div style={{ fontSize: '16px' }}>••••••••</div>
+              {eventos.length === 0 ? (
+                <div style={{
+                  backgroundColor: 'white',
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb',
+                  padding: '24px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '48px', marginBottom: '12px' }}>📅</div>
+                  <h3 style={{ 
+                    margin: '0 0 8px 0', 
+                    fontSize: '16px',
+                    color: '#374151',
+                    fontWeight: '500'
+                  }}>
+                    Nenhum evento para esta data
+                  </h3>
+                  <p style={{ 
+                    fontSize: '14px', 
+                    color: '#6b7280', 
+                    margin: 0
+                  }}>
+                    Os eventos dos seus teatros aparecerão aqui.
+                  </p>
                 </div>
-                <div 
-                  onClick={() => navigate('/esqueci-senha')}
-                  style={{ color: '#041e42', fontSize: '14px', cursor: 'pointer' }}
-                >
-                  Alterar
+              ) : (
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  {eventos.map((evento, index) => (
+                    <div 
+                      key={index}
+                      style={{
+                        backgroundColor: 'white',
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb',
+                        borderLeft: evento.tipo === 'apresentacao' ? '4px solid #fc6c5f' : '4px solid #6b7280',
+                        padding: '16px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onClick={() => navigate(`/teatro/${evento.teatro.id}`)}
+                    >
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: '8px'
+                      }}>
+                        <h3 style={{ 
+                          margin: 0, 
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          color: '#1f2937',
+                          lineHeight: '1.4'
+                        }}>
+                          {evento.teatro.titulo}
+                        </h3>
+                        <span style={{
+                          fontSize: '12px',
+                          padding: '4px 8px',
+                          backgroundColor: evento.tipo === 'apresentacao' ? '#fc6c5f' : '#6b7280',
+                          color: 'white',
+                          borderRadius: '6px',
+                          fontWeight: '500',
+                          flexShrink: 0,
+                          marginLeft: '8px'
+                        }}>
+                          {evento.tipo === 'apresentacao' ? 'Apresentação' : 'Ensaio'}
+                        </span>
+                      </div>
+                      
+                      <p style={{ 
+                        margin: '0 0 8px 0',
+                        fontSize: '14px',
+                        color: '#6b7280'
+                      }}>
+                        {evento.teatro.local ? `📍 ${evento.teatro.local}` : '📍 Local não definido'}
+                      </p>
+                      
+                      <p style={{ 
+                        margin: '0',
+                        fontSize: '12px',
+                        color: '#9ca3af',
+                        textAlign: 'right'
+                      }}>
+                        Toque para ver detalhes →
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
-          </div>
-          
-          {/* Estatísticas dinâmicas */}
-          <div style={{ marginBottom: '25px' }}>
-            <h3 style={{ 
-              fontSize: '16px', 
-              color: '#333', 
-              marginBottom: '15px',
-              fontWeight: 'bold',
-              paddingBottom: '8px',
-              borderBottom: '1px solid #eee'
-            }}>
-              Estatísticas
-            </h3>
-            
-            {loading ? (
-              <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                padding: '15px'
-              }}>
-                <div style={{
-                  width: '24px',
-                  height: '24px',
-                  border: '2px solid #f3f3f3',
-                  borderTop: '2px solid #fc6c5f',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }}></div>
-              </div>
-            ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '10px'
-              }}>
-                <div style={{
-                  backgroundColor: 'white',
-                  padding: '15px',
-                  borderRadius: '8px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ color: '#041e42', fontSize: '24px', fontWeight: 'bold' }}>{userStats.gruposAtivos}</div>
-                  <div style={{ color: '#666', fontSize: '14px' }}>Grupos Ativos</div>
-                </div>
-                <div style={{
-                  backgroundColor: 'white',
-                  padding: '15px',
-                  borderRadius: '8px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ color: '#fc6c5f', fontSize: '24px', fontWeight: 'bold' }}>{userStats.participacoes}</div>
-                  <div style={{ color: '#666', fontSize: '14px' }}>Participações</div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Botões de ação */}
-          <div style={{ marginBottom: '80px' }}>
-            <button 
-              onClick={() => navigate('/teatros')}
-              style={{
-                backgroundColor: '#041e42',
-                color: 'white',
-                padding: '12px 0',
-                borderRadius: '8px',
-                border: 'none',
-                width: '100%',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                marginBottom: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              Meus Grupos
-            </button>
-            
-            <button 
-              onClick={handleLogout}
-              style={{
-                backgroundColor: 'white',
-                color: '#fc6c5f',
-                padding: '12px 0',
-                borderRadius: '8px',
-                border: '1px solid #fc6c5f',
-                width: '100%',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                cursor: 'pointer'
-              }}
-            >
-              Sair
-            </button>
-          </div>
-        </div>
+          </>
+        )}
       </div>
-      <BottomNav currentPath="/perfil" />
+      
+      <BottomNav currentPath="/eventos" />
     </div>
   );
 }
@@ -3600,40 +4854,44 @@ function SimpleCalendarInteractive({
   
   return (
     <div style={{ 
-      backgroundColor: '#ffffff',
-      borderRadius: '12px',
-      padding: '15px',
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      border: '1px solid #e5e7eb',
+      padding: '16px',
       marginBottom: '20px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
       width: '100%',
       maxWidth: '100%'
     }}>
-      <div style={{ marginBottom: '20px' }}>
+      <div style={{ marginBottom: '16px' }}>
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          marginBottom: '15px'
+          marginBottom: '12px'
         }}>
           <button 
             onClick={goToPreviousMonth}
             style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '20px',
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              fontSize: '16px',
               cursor: 'pointer',
-              padding: '5px 10px',
-              color: '#888'
+              padding: '8px 12px',
+              color: '#374151',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             ←
           </button>
           
           <div style={{ 
-            fontWeight: 'bold', 
+            fontWeight: '600', 
             fontSize: '16px',
             textTransform: 'capitalize',
-            color: '#333'
+            color: '#1f2937'
           }}>
             {getMonthYearString(currentDate)}
           </div>
@@ -3641,24 +4899,27 @@ function SimpleCalendarInteractive({
           <button 
             onClick={goToNextMonth}
             style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '20px',
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              fontSize: '16px',
               cursor: 'pointer',
-              padding: '5px 10px',
-              color: '#888'
+              padding: '8px 12px',
+              color: '#374151',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             →
           </button>
         </div>
         
-        {/* Legenda minimalista */}
+        {/* Legenda */}
         <div style={{ 
           display: 'flex', 
-          justifyContent: 'flex-end', 
-          gap: '12px',
-          marginTop: '5px',
+          justifyContent: 'center', 
+          gap: '16px',
           fontSize: '12px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -3666,10 +4927,10 @@ function SimpleCalendarInteractive({
               width: '8px', 
               height: '8px', 
               borderRadius: '50%', 
-              border: '1px solid #888',
-              backgroundColor: '#f0f0f0'
+              border: '1px solid #6b7280',
+              backgroundColor: '#f3f4f6'
             }}></div>
-            <span style={{ color: '#888' }}>Ensaio</span>
+            <span style={{ color: '#6b7280', fontWeight: '500' }}>Ensaio</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <div style={{ 
@@ -3678,7 +4939,7 @@ function SimpleCalendarInteractive({
               borderRadius: '50%', 
               backgroundColor: '#fc6c5f' 
             }}></div>
-            <span style={{ color: '#888' }}>Apresentação</span>
+            <span style={{ color: '#6b7280', fontWeight: '500' }}>Apresentação</span>
           </div>
         </div>
       </div>
@@ -3687,8 +4948,8 @@ function SimpleCalendarInteractive({
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(7, 1fr)',
-        gap: '5px',
-        marginBottom: '10px'
+        gap: '4px',
+        marginBottom: '8px'
       }}>
         {daysOfWeek.map(day => (
           <div 
@@ -3696,9 +4957,9 @@ function SimpleCalendarInteractive({
             style={{ 
               textAlign: 'center', 
               fontSize: '12px',
-              fontWeight: 'bold',
-              color: '#aaa',
-              padding: '5px 0'
+              fontWeight: '600',
+              color: '#6b7280',
+              padding: '8px 0'
             }}
           >
             {day}
@@ -3713,8 +4974,8 @@ function SimpleCalendarInteractive({
           style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(7, 1fr)',
-            gap: '5px',
-            marginBottom: '5px'
+            gap: '4px',
+            marginBottom: '4px'
           }}
         >
           {week.map((day, dayIndex) => {
@@ -3726,49 +4987,52 @@ function SimpleCalendarInteractive({
                 key={`${weekIndex}-${dayIndex}`}
                 onClick={() => day.currentMonth && handleDateClick(day.date)}
                 style={{
-                  width: '36px',
-                  height: '36px',
+                  width: '38px',
+                  height: '38px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  borderRadius: '50%',
+                  borderRadius: '6px',
                   cursor: day.currentMonth ? 'pointer' : 'default',
-                  backgroundColor: isSelected(day.date) ? '#f8f8f8' : 'transparent',
-                  color: !day.currentMonth ? '#ddd' : 
-                        isSelected(day.date) ? '#333' : 
-                        isToday(day.date) ? '#fc6c5f' : '#555',
-                  fontWeight: isToday(day.date) || isSelected(day.date) ? 'bold' : 'normal',
+                  backgroundColor: isSelected(day.date) ? '#fc6c5f' : 
+                                 isToday(day.date) ? '#f9fafb' : 'transparent',
+                  color: !day.currentMonth ? '#d1d5db' : 
+                        isSelected(day.date) ? 'white' : 
+                        isToday(day.date) ? '#fc6c5f' : '#374151',
+                  fontWeight: isToday(day.date) || isSelected(day.date) ? '600' : '400',
                   position: 'relative',
-                  border: isSelected(day.date) ? '1px solid #ddd' : 'none'
+                  border: isToday(day.date) && !isSelected(day.date) ? '1px solid #fc6c5f' : 
+                         isSelected(day.date) ? 'none' : '1px solid transparent',
+                  fontSize: '14px',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 {day.day}
                 
-                {/* Indicador minimalista para eventos */}
-                {day.currentMonth && (
+                {/* Indicadores para eventos */}
+                {day.currentMonth && (isEnsaio || isApresentacao) && (
                   <div style={{
                     position: 'absolute',
-                    bottom: '3px',
+                    bottom: '2px',
                     left: '50%',
                     transform: 'translateX(-50%)',
                     display: 'flex',
-                    gap: '3px'
+                    gap: '2px'
                   }}>
                     {isEnsaio && (
                       <div style={{ 
-                        width: '4px', 
-                        height: '4px', 
+                        width: '3px', 
+                        height: '3px', 
                         borderRadius: '50%', 
-                        border: '1px solid #888',
-                        backgroundColor: isSelected(day.date) ? '#888' : '#f0f0f0'
+                        backgroundColor: isSelected(day.date) ? 'white' : '#6b7280'
                       }}></div>
                     )}
                     {isApresentacao && (
                       <div style={{ 
-                        width: '4px', 
-                        height: '4px', 
+                        width: '3px', 
+                        height: '3px', 
                         borderRadius: '50%', 
-                        backgroundColor: '#fc6c5f' 
+                        backgroundColor: isSelected(day.date) ? 'white' : '#fc6c5f'
                       }}></div>
                     )}
                   </div>

@@ -27,13 +27,6 @@ const config: CapacitorConfig = {
     CapacitorCookies: {
       enabled: true
     },
-    LocalNotifications: {
-      smallIcon: "ic_stat_icon_config_sample",
-      iconColor: "#1976d2"
-    },
-    PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"]
-    },
     CapacitorFirebaseAuth: {
       providers: ["google.com", "apple.com"],
       languageCode: "pt-BR",

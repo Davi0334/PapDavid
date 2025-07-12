@@ -875,7 +875,7 @@ const TeatroDetalhes: React.FC = () => {
         return null;
     }
   };
-    
+
   return (
     <MobileWrapper 
       title={teatro.titulo} 
@@ -887,7 +887,7 @@ const TeatroDetalhes: React.FC = () => {
       {/* Container principal com propriedades fixas */}
       <div style={{ 
         display: 'flex', 
-        flexDirection:  'column', 
+        flexDirection: 'column', 
         width: '100%', 
         height: '100vh',
         position: 'fixed',

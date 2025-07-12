@@ -1,145 +1,122 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, CalendarDays, User } from 'lucide-react';
-import { getSafeAreaInsets } from '@/lib/mobile-config';
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
-  const pathname = location.pathname;
-  const safeAreaInsets = getSafeAreaInsets();
-
-  // Find the active path or default to home
-  const getActiveRoute = () => {
-    if (pathname === '/') return 'inicio';
-    if (pathname.startsWith('/teatro/') || pathname === '/teatros') return 'inicio';
-    if (pathname === '/buscar') return 'buscar';
-    if (pathname === '/eventos' || pathname.startsWith('/evento/')) return 'eventos';
-    if (pathname === '/perfil') return 'perfil';
-    return 'inicio';
+  
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
 
-  const activeRoute = getActiveRoute();
-
-  // Apply styles to ensure the bottom nav doesn't overlap content
-  React.useEffect(() => {
-    // Add padding to the document body to ensure content is not obscured
-    document.body.style.paddingBottom = '80px';
-    
-    return () => {
-      // Cleanup when component unmounts
-      document.body.style.paddingBottom = '';
-    };
-  }, []);
-
   return (
-    <div 
-      className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10 shadow-lg"
-      style={{ 
-        paddingBottom: safeAreaInsets.bottom > 0 ? `${safeAreaInsets.bottom}px` : '0',
-      }}
-    >
-      {/* Active indicator bar */}
-      <div className="relative h-0.5 w-full">
-        <div 
-          className="absolute h-full bg-[#fc6c5f] transition-all duration-300 ease-in-out"
-          style={{ 
-            width: '25%',
-            left: activeRoute === 'inicio' ? '0%' :
-                 activeRoute === 'buscar' ? '25%' :
-                 activeRoute === 'eventos' ? '50%' : '75%'
-          }}
-        ></div>
-      </div>
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      position: 'fixed', 
+      bottom: 0, 
+      left: 0, 
+      right: 0, 
+      backgroundColor: 'white', 
+      padding: '10px 0', 
+      borderTop: '1px solid #e0e0e0', 
+      zIndex: 10, 
+      maxWidth: '430px', 
+      margin: '0 auto', 
+      boxShadow: '0 -2px 10px rgba(0,0,0,0.05)' 
+    }}>
+      <Link 
+        to="/" 
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textDecoration: 'none',
+          flex: 1,
+          padding: '6px 0',
+          color: isActive('/') ? '#fc6c5f' : '#333',
+          fontSize: '0.7rem',
+          fontWeight: isActive('/') ? '600' : '500'
+        }}
+      >
+        <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth={isActive('/') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span>INÍCIO</span>
+      </Link>
       
-      <div className="grid grid-cols-4 h-16">
-        <Link 
-          to="/" 
-          className={`
-            flex flex-col items-center justify-center text-xs 
-            transition-colors duration-200 
-            active:bg-gray-100
-            ${activeRoute === 'inicio' ? 'text-[#fc6c5f] font-medium' : 'text-gray-500'}
-          `}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-        >
-          <div className="relative">
-            <Home 
-              size={22} 
-              className={`transition-colors duration-200 ${activeRoute === 'inicio' ? 'text-[#fc6c5f]' : 'text-gray-500'}`} 
-            />
-            {activeRoute === 'inicio' && (
-              <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#fc6c5f]"></div>
-            )}
-          </div>
-          <span className="mt-1">INÍCIO</span>
-        </Link>
-        
-        <Link 
-          to="/buscar" 
-          className={`
-            flex flex-col items-center justify-center text-xs 
-            transition-colors duration-200 
-            active:bg-gray-100
-            ${activeRoute === 'buscar' ? 'text-[#fc6c5f] font-medium' : 'text-gray-500'}
-          `}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-        >
-          <div className="relative">
-            <Search 
-              size={22} 
-              className={`transition-colors duration-200 ${activeRoute === 'buscar' ? 'text-[#fc6c5f]' : 'text-gray-500'}`} 
-            />
-            {activeRoute === 'buscar' && (
-              <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#fc6c5f]"></div>
-            )}
-          </div>
-          <span className="mt-1">BUSCAR</span>
-        </Link>
-        
-        <Link 
-          to="/eventos" 
-          className={`
-            flex flex-col items-center justify-center text-xs 
-            transition-colors duration-200 
-            active:bg-gray-100
-            ${activeRoute === 'eventos' ? 'text-[#fc6c5f] font-medium' : 'text-gray-500'}
-          `}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-        >
-          <div className="relative">
-            <CalendarDays 
-              size={22} 
-              className={`transition-colors duration-200 ${activeRoute === 'eventos' ? 'text-[#fc6c5f]' : 'text-gray-500'}`} 
-            />
-            {activeRoute === 'eventos' && (
-              <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#fc6c5f]"></div>
-            )}
-          </div>
-          <span className="mt-1">EVENTOS</span>
-        </Link>
-        
-        <Link 
-          to="/perfil" 
-          className={`
-            flex flex-col items-center justify-center text-xs 
-            transition-colors duration-200 
-            active:bg-gray-100
-            ${activeRoute === 'perfil' ? 'text-[#fc6c5f] font-medium' : 'text-gray-500'}
-          `}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-        >
-          <div className="relative">
-            <User 
-              size={22} 
-              className={`transition-colors duration-200 ${activeRoute === 'perfil' ? 'text-[#fc6c5f]' : 'text-gray-500'}`} 
-            />
-            {activeRoute === 'perfil' && (
-              <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#fc6c5f]"></div>
-            )}
-          </div>
-          <span className="mt-1">PERFIL</span>
-        </Link>
-      </div>
+      <Link 
+        to="/buscar" 
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textDecoration: 'none',
+          flex: 1,
+          padding: '6px 0',
+          color: isActive('/buscar') ? '#fc6c5f' : '#333',
+          fontSize: '0.7rem',
+          fontWeight: isActive('/buscar') ? '600' : '500'
+        }}
+      >
+        <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth={isActive('/buscar') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth={isActive('/buscar') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span>BUSCAR</span>
+      </Link>
+      
+      <Link 
+        to="/eventos" 
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textDecoration: 'none',
+          flex: 1,
+          padding: '6px 0',
+          color: isActive('/eventos') ? '#fc6c5f' : '#333',
+          fontSize: '0.7rem',
+          fontWeight: isActive('/eventos') ? '600' : '500'
+        }}
+      >
+        <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="currentColor" strokeWidth={isActive('/eventos') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M16 2V4" stroke="currentColor" strokeWidth={isActive('/eventos') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M8 2V4" stroke="currentColor" strokeWidth={isActive('/eventos') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M3 10H21" stroke="currentColor" strokeWidth={isActive('/eventos') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M9 16L11 18L15 14" stroke="currentColor" strokeWidth={isActive('/eventos') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span>EVENTOS</span>
+      </Link>
+      
+      <Link 
+        to="/perfil" 
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textDecoration: 'none',
+          flex: 1,
+          padding: '6px 0',
+          color: isActive('/perfil') ? '#fc6c5f' : '#333',
+          fontSize: '0.7rem',
+          fontWeight: isActive('/perfil') ? '600' : '500'
+        }}
+      >
+        <div style={{ marginBottom: '6px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" strokeWidth={isActive('/perfil') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="currentColor" strokeWidth={isActive('/perfil') ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span>PERFIL</span>
+      </Link>
     </div>
   );
 };

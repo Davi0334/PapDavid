@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [focusedField, setFocusedField] = useState('');
+  const [error, setError] = useState('');
   const { user, login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
@@ -22,182 +26,515 @@ export function Login() {
     e.preventDefault();
     
     if (!email || !password) {
+      setError('Por favor, preencha todos os campos');
       toast.error('Por favor, preencha todos os campos');
       return;
     }
     
     setLoading(true);
+    setError('');
     
     try {
       await login(email, password);
+      toast.success('Login realizado com sucesso!');
       // Navegação é feita no useEffect quando user for atualizado
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro no login:', error);
+      
+      let errorMessage = 'Erro ao fazer login. Verifique suas credenciais.';
+      
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'Email não encontrado. Verifique o endereço digitado.';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Senha incorreta. Tente novamente.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Email inválido. Verifique o formato.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Muitas tentativas. Tente novamente mais tarde.';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'Esta conta foi desabilitada. Entre em contato com o suporte.';
+          break;
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setError('');
+    
     try { 
       console.log("Iniciando login com Google a partir do botão");
       await loginWithGoogle();
+      toast.success('Login realizado com sucesso!');
       // Navegação é feita no useEffect quando user for atualizado
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro no login com Google:', error);
+      
+      let errorMessage = 'Erro ao fazer login com Google.';
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Login cancelado pelo usuário.';
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
+        errorMessage = 'Já existe uma conta com este email usando outro método de login.';
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
       setLoading(false);
     }
   };
 
   return (
     <div style={{
-      maxWidth: '400px',
-      margin: '0 auto',
-      padding: '20px'
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #fc6c5f 0%, #ff8a80 25%, #ffffff 50%, #fc6c5f 75%, #e55a4b 100%)',
+      backgroundSize: '400% 400%',
+      animation: 'gradientFlow 8s ease infinite',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
-      <h1 style={{
-        fontSize: '24px',
-        fontWeight: 'bold',
-        textAlign: 'center' as const,
-        marginBottom: '30px',
-        marginTop: '20px'
-      }}>
-        ServeFirst
-      </h1>
-      
-      <div>
-        <input
-          type="text"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="User554125"
-          style={{
-            width: '100%',
-            padding: '12px',
-            marginBottom: '15px',
-            border: '1px solid #ccc',
-            borderRadius: '5px',
-            boxSizing: 'border-box' as const,
-            backgroundColor: '#ff7f7f',
-            opacity: 0.5
-          }}
-        />
-        
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••••••••••••••••"
-          style={{
-            width: '100%',
-            padding: '12px',
-            marginBottom: '15px',
-            border: '1px solid #ccc',
-            borderRadius: '5px',
-            boxSizing: 'border-box' as const,
-            backgroundColor: '#ff7f7f',
-            opacity: 0.5
-          }}
-        />
-      </div>
+      {/* Elementos decorativos de fundo */}
+      <div style={{
+        position: 'absolute',
+        top: '15%',
+        left: '10%',
+        width: '180px',
+        height: '180px',
+        borderRadius: '50%',
+        background: 'linear-gradient(45deg, rgba(252, 108, 95, 0.1), rgba(255, 255, 255, 0.1))',
+        filter: 'blur(40px)',
+        animation: 'float 7s ease-in-out infinite'
+      }}></div>
       
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '20px'
-      }}>
-        <Link 
-          to="/esqueci-senha" 
-          style={{
-            color: '#0000EE',
-            textDecoration: 'underline',
-            cursor: 'pointer',
-            fontSize: '14px'
-          }}
-        >
-          Esqueceu a senha?
-        </Link>
-        
-        <button 
-          onClick={handleSubmit}
-          disabled={loading}
-          style={{
-            backgroundColor: '#ff7f7f',
-            color: 'white',
-            border: 'none',
-            padding: '10px 15px',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          Entrar <span style={{marginLeft: '5px'}}>→</span>
-        </button>
-      </div>
-      
+        position: 'absolute',
+        bottom: '20%',
+        right: '15%',
+        width: '120px',
+        height: '120px',
+        borderRadius: '50%',
+        background: 'linear-gradient(45deg, rgba(255, 255, 255, 0.1), rgba(252, 108, 95, 0.1))',
+        filter: 'blur(25px)',
+        animation: 'float 6s ease-in-out infinite reverse'
+      }}></div>
+
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        margin: '20px 0',
-        color: '#777'
+        width: '100%',
+        maxWidth: '400px',
+        position: 'relative'
       }}>
+        {/* Container principal com glassmorphism */}
         <div style={{
-          flex: 1,
-          height: '1px',
-          backgroundColor: '#ccc'
-        }}></div>
-        <span style={{padding: '0 10px'}}>ou</span>
-        <div style={{
-          flex: 1,
-          height: '1px',
-          backgroundColor: '#ccc'
-        }}></div>
-      </div>
-      
-      <button
-        onClick={handleGoogleLogin}
-        disabled={loading}
-        style={{
-          width: '100%',
-          padding: '12px',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'white',
-          color: '#444',
-          border: '1px solid #ddd',
-          borderRadius: '5px',
-          cursor: 'pointer',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-        }}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24" style={{marginRight: '10px'}}>
-          <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
-          <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
-          <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
-          <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
-        </svg>
-        Entrar com Google
-      </button>
-      
-      <div style={{
-        textAlign: 'center' as const,
-        fontSize: '14px',
-        color: '#555'
-      }}>
-        Não tem uma conta ainda?{' '}
-        <Link to="/cadastro" style={{
-          color: '#0000EE',
-          textDecoration: 'underline'
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: '24px',
+          padding: '32px',
+          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.3)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          position: 'relative',
+          overflow: 'hidden'
         }}>
-          Cadastre-se
-        </Link>
+          {/* Logo e cabeçalho */}
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '80px',
+              height: '80px',
+              background: 'linear-gradient(135deg, #fc6c5f, #e55a4b)',
+              borderRadius: '20px',
+              marginBottom: '16px',
+              boxShadow: '0 10px 30px rgba(252, 108, 95, 0.3)',
+              animation: 'pulse 2s ease-in-out infinite'
+            }}>
+              <LogIn style={{ width: '40px', height: '40px', color: 'white' }} />
+            </div>
+            
+            <h1 style={{
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              background: 'linear-gradient(135deg, #fc6c5f, #e55a4b)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              marginBottom: '8px',
+              margin: '0 0 8px 0'
+            }}>
+              ServeFirst
+            </h1>
+            
+            <p style={{
+              color: '#6b7280',
+              fontSize: '1rem',
+              margin: 0
+            }}>
+              Bem-vindo de volta!
+            </p>
+          </div>
+
+          {/* Mensagem de erro */}
+          {error && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '16px',
+              backgroundColor: 'rgba(248, 113, 113, 0.1)',
+              border: '1px solid rgba(248, 113, 113, 0.2)',
+              borderRadius: '12px',
+              marginBottom: '24px',
+              animation: 'slideIn 0.3s ease-out'
+            }}>
+              <AlertCircle style={{ width: '20px', height: '20px', color: '#ef4444', flexShrink: 0 }} />
+              <span style={{ color: '#dc2626', fontSize: '0.875rem' }}>{error}</span>
+            </div>
+          )}
+
+          {/* Formulário */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Campo Email */}
+            <div style={{ position: 'relative' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                color: focusedField === 'email' ? '#fc6c5f' : '#374151',
+                marginBottom: '8px',
+                transition: 'color 0.2s ease'
+              }}>
+                Email
+              </label>
+              
+              <div style={{ position: 'relative' }}>
+                <div style={{
+                  position: 'absolute',
+                  left: '16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: focusedField === 'email' ? '#fc6c5f' : '#9ca3af',
+                  transition: 'color 0.2s ease'
+                }}>
+                  <Mail style={{ width: '20px', height: '20px' }} />
+                </div>
+                
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField('')}
+                  placeholder="seu.email@exemplo.com"
+                  style={{
+                    width: '100%',
+                    paddingLeft: '52px',
+                    paddingRight: '16px',
+                    paddingTop: '14px',
+                    paddingBottom: '14px',
+                    fontSize: '1rem',
+                    borderRadius: '12px',
+                    border: focusedField === 'email' ? '2px solid #fc6c5f' : '2px solid #e5e7eb',
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    outline: 'none',
+                    transition: 'all 0.2s ease',
+                    boxShadow: focusedField === 'email' ? '0 0 0 4px rgba(252, 108, 95, 0.1)' : 'none'
+                  }}
+                  disabled={loading}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Campo Senha */}
+            <div style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: focusedField === 'password' ? '#fc6c5f' : '#374151',
+                  transition: 'color 0.2s ease'
+                }}>
+                  Senha
+                </label>
+                
+                <Link
+                  to="/esqueci-senha"
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#fc6c5f',
+                    textDecoration: 'none',
+                    fontWeight: '500',
+                    transition: 'color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#e55a4b';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#fc6c5f';
+                  }}
+                >
+                  Esqueceu a senha?
+                </Link>
+              </div>
+              
+              <div style={{ position: 'relative' }}>
+                <div style={{
+                  position: 'absolute',
+                  left: '16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: focusedField === 'password' ? '#fc6c5f' : '#9ca3af',
+                  transition: 'color 0.2s ease'
+                }}>
+                  <Lock style={{ width: '20px', height: '20px' }} />
+                </div>
+                
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField('')}
+                  placeholder="••••••••••"
+                  style={{
+                    width: '100%',
+                    paddingLeft: '52px',
+                    paddingRight: '52px',
+                    paddingTop: '14px',
+                    paddingBottom: '14px',
+                    fontSize: '1rem',
+                    borderRadius: '12px',
+                    border: focusedField === 'password' ? '2px solid #fc6c5f' : '2px solid #e5e7eb',
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    outline: 'none',
+                    transition: 'all 0.2s ease',
+                    boxShadow: focusedField === 'password' ? '0 0 0 4px rgba(252, 108, 95, 0.1)' : 'none'
+                  }}
+                  disabled={loading}
+                  required
+                />
+                
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#9ca3af',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    borderRadius: '4px',
+                    transition: 'color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#fc6c5f';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#9ca3af';
+                  }}
+                >
+                  {showPassword ? <EyeOff style={{ width: '20px', height: '20px' }} /> : <Eye style={{ width: '20px', height: '20px' }} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Botão de login */}
+            <button
+              type="submit"
+              disabled={loading || !email || !password}
+              style={{
+                width: '100%',
+                padding: '16px',
+                fontSize: '1rem',
+                fontWeight: '600',
+                borderRadius: '12px',
+                border: 'none',
+                background: loading || !email || !password 
+                  ? 'linear-gradient(135deg, #d1d5db, #9ca3af)' 
+                  : 'linear-gradient(135deg, #fc6c5f, #e55a4b)',
+                color: 'white',
+                cursor: loading || !email || !password ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: loading || !email || !password 
+                  ? 'none' 
+                  : '0 10px 30px rgba(252, 108, 95, 0.3)',
+                transform: loading ? 'scale(0.98)' : 'scale(1)',
+                marginTop: '8px'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading && email && password) {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 15px 40px rgba(252, 108, 95, 0.4)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading && email && password) {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 10px 30px rgba(252, 108, 95, 0.3)';
+                }
+              }}
+            >
+              {loading ? (
+                <>
+                  <Loader2 style={{ width: '20px', height: '20px', animation: 'spin 1s linear infinite' }} />
+                  Entrando...
+                </>
+              ) : (
+                <>
+                  Entrar
+                  <ArrowRight style={{ width: '20px', height: '20px' }} />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Divisor */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            margin: '32px 0',
+            gap: '16px'
+          }}>
+            <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, #e5e7eb, transparent)' }}></div>
+            <span style={{ color: '#6b7280', fontSize: '0.875rem', fontWeight: '500' }}>ou continue com</span>
+            <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, #e5e7eb, transparent)' }}></div>
+          </div>
+
+          {/* Botão Google */}
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '14px',
+              fontSize: '1rem',
+              fontWeight: '500',
+              borderRadius: '12px',
+              border: '2px solid #e5e7eb',
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              color: '#374151',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              transform: loading ? 'scale(0.98)' : 'scale(1)'
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.borderColor = '#fc6c5f';
+                e.currentTarget.style.backgroundColor = 'rgba(252, 108, 95, 0.05)';
+                e.currentTarget.style.transform = 'scale(1.02)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.currentTarget.style.borderColor = '#e5e7eb';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            {loading ? 'Carregando...' : 'Google'}
+          </button>
+
+          {/* Link para cadastro */}
+          <div style={{
+            textAlign: 'center',
+            marginTop: '32px',
+            color: '#6b7280',
+            fontSize: '0.875rem'
+          }}>
+            Não tem uma conta?{' '}
+            <Link
+              to="/cadastro"
+              style={{
+                color: '#fc6c5f',
+                fontWeight: '600',
+                textDecoration: 'none',
+                transition: 'color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#e55a4b';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#fc6c5f';
+              }}
+            >
+              Cadastre-se
+            </Link>
+          </div>
+        </div>
+
+        {/* Rodapé */}
+        <div style={{
+          textAlign: 'center',
+          marginTop: '24px',
+          color: 'rgba(255, 255, 255, 0.8)',
+          fontSize: '0.75rem'
+        }}>
+          <p style={{ margin: 0 }}>
+            &copy; {new Date().getFullYear()} ServeFirst. Todos os direitos reservados.
+          </p>
+        </div>
       </div>
+
+      {/* Estilos CSS */}
+      <style>
+        {`
+          @keyframes gradientFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+          }
+          
+          @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(180deg); }
+          }
+          
+          @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+          }
+          
+          @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 }
